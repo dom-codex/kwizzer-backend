@@ -17,5 +17,9 @@ const Person = sequelize.define('person',{
         type:Sequelize.STRING,
         allowNull:false
     },
+    email:{
+        type:Sequelize.STRING,
+        allowNull:false
+    }
 });
 module.exports = Person;
