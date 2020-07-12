@@ -11,5 +11,8 @@ module.exports.createUser = async(req,res,next)=>{
         name:name,
         password:hashedPassword
     });
-    res.json('person sucessfully created')
+    res.json({
+        code:201,
+        message:'account sucessfully created!!!'
+    });
 };
