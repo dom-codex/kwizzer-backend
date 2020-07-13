@@ -1,7 +1,7 @@
 const Sequelize = require('sequelize');
 const sequelize = require('../utils/database');
 
-const Person = sequelize.define('person',{
+const classBlock = sequelize.define('classblock',{
     id: {
         type:Sequelize.INTEGER,
         autoIncrement:true,
@@ -11,14 +11,10 @@ const Person = sequelize.define('person',{
     name:{
         type:Sequelize.STRING,
         allowNull:false
-    },  
-    password:{
-        type:Sequelize.STRING,
-        allowNull:false
     },
-    email:{
+    description:{
         type:Sequelize.STRING,
-        allowNull:false
-    }
+        allowNull:true
+    }  
 });
-module.exports = Person;
+module.exports = classBlock;
