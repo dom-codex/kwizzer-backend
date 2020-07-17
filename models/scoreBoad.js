@@ -1,14 +1,14 @@
 const Sequelize = require("sequelize");
 const sequelize = require("../utils/database");
 
-const Question = sequelize.define("question", {
+const Score = sequelize.define("score", {
   id: {
     type: Sequelize.INTEGER,
     autoIncrement: true,
     allowNull: false,
     primaryKey: true,
   },
-  question: Sequelize.STRING,
-  questionUrl: Sequelize.STRING,
+  score: Sequelize.DOUBLE,
+  questId: Sequelize.STRING,
 });
-module.exports = Question;
+module.exports = Score;
