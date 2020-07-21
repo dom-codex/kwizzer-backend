@@ -6,8 +6,8 @@ const mongoose = require("mongoose");
 const sequelize = require("./utils/database");
 const person = require("./models/person");
 const school = require("./models/school");
-const classBlock = require("./models/class");
-const teacher = require("./models/teacher");
+//const classBlock = require("./models/class");
+//const teacher = require("./models/teacher");
 const classroom = require("./models/classrooms");
 const quiz = require("./models/quiz");
 const question = require("./models/questions");
@@ -36,38 +36,42 @@ app.use((req, res, next) => {
 app.use("/school", schoolRoutes);
 app.use("/", userRoutes);
 //sql associations
-person.hasMany(school);
+person.hasMany(school, { constraints: true, onDelete: "CASCADE" });
 
-school.hasMany(classBlock);
+//school.hasMany(classBlock);
 
-person.belongsToMany(school, { through: teacher });
+//person.belongsToMany(school, { through: teacher });
 
-classBlock.belongsToMany(person, { through: teacher });
+//assBlock.belongsToMany(person, { through: teacher });
 
-person.belongsToMany(classBlock, { through: classroom });
+//person.belongsToMany(classBlock, { through: classroom });
 
-person.belongsToMany(school, { through: classroom });
+person.belongsToMany(school, {
+  through: classroom,
+  constraints: true,
+  onDelete: "CASCADE",
+});
 
-quiz.belongsTo(person);
+quiz.belongsTo(school, { constraints: true, onDelete: "CASCADE" });
 
-question.belongsTo(quiz);
+question.belongsTo(quiz, { constraints: true, onDelete: "CASCADE" });
 
-quiz.belongsTo(school);
+//quiz.belongsTo(school);
 
-quiz.belongsTo(classBlock);
+//quiz.belongsTo(classBlock);
 
-question.hasMany(option);
+question.hasMany(option, { constraints: true, onDelete: "CASCADE" });
 
-quiz.hasMany(scoreboard);
+quiz.hasMany(scoreboard, { constraints: true, onDelete: "CASCADE" });
 
-person.hasMany(scoreboard);
+person.hasMany(scoreboard, { constraints: true, onDelete: "CASCADE" });
 
-classBlock.hasMany(scoreboard);
+//classBlock.hasMany(scoreboard);
 sequelize
   .sync()
   .then((_) => {
     mongoose.connect("mongodb://127.0.0.1:27017/learned").then((_) => {
-      app.listen(3000);
+      app.listen(3500);
       console.log("connected");
     });
   })

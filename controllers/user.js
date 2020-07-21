@@ -1,22 +1,29 @@
 const bcrypt = require("bcryptjs");
 const Person = require("../models/person");
+const crypto = require("crypto");
 //third party imports
 module.exports.createUser = async (req, res, next) => {
   //retrive data from body
-  console.log(req.body);
-  return;
-  const { email, name, password } = req.body;
+  const { email, name, password, phone } = req.body;
   //check for errors later
   //hash password
   const hashedPassword = await bcrypt.hash(password, 12);
-  const person = await Person.create({
-    email: email,
-    name: name,
-    password: hashedPassword,
-  });
-  res.json({
-    code: 201,
-    message: "account sucessfully created!!!",
+  crypto.randomBytes(20, async (err, buffer) => {
+    const ref = buffer.toString("hex");
+    const person = await Person.create({
+      email: email,
+      name: name,
+      phone: phone,
+      password: hashedPassword,
+      ref: ref,
+    });
+    res.json({
+      code: 201,
+      user: {
+        ref: ref,
+      },
+      message: "account sucessfully created!!!",
+    });
   });
 };
 module.exports.loginUser = async (req, res, next) => {
