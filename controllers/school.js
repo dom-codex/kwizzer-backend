@@ -47,7 +47,7 @@ module.exports.loginSchool = async (req, res, next) => {
     console.log("error occured");
   }
 };
-module.exports.createClassBlock = async (req, res, next) => {
+/*module.exports.createClassBlock = async (req, res, next) => {
   //retrieve details from body
   //sid === school id
   try {
@@ -101,16 +101,15 @@ module.exports.removeTeacher = async (req, res, next) => {
     code: 201,
     message: "teacher removed successfully",
   });
-};
+};*/
 module.exports.setQuiz = async (req, res, next) => {
   try {
     /**get teachers id and the school and class id which the quiz belongs to */
-    const { title, tid, sid, cid } = req.body;
+    const { title, tid, sid } = req.body;
     const quiz = await Quiz.create({
       title: title,
       personId: tid,
       schoolId: sid,
-      classblockId: cid,
     });
     res.json({
       code: 200,
@@ -233,11 +232,9 @@ module.exports.enrollStudent = async (req, res, next) => {
   try {
     //retrieve details from body
     //sid === school id
-    //cid ==== classblock id
-    //pid === person id
-    const { sid, cid, pid } = req.body;
+    //pid === person id(student)
+    const { sid, pid } = req.body;
     Classroom.create({
-      classblockId: cid,
       schoolId: sid,
       personId: pid,
     });

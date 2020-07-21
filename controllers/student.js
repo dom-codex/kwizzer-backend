@@ -12,14 +12,13 @@ const studentQuestion = require("../models/studentQuestion");
 module.exports.takeQuiz = async (req, res, next) => {
   /*retrieve students info */
   try {
-    const { sid, cid, pid, quid } = req.body;
+    const { sid, pid, quid } = req.body;
     //comfirm if student belongs to classroom of school whose quiz
     //they want to take
     const student = await Classroom.findOne({
       where: {
         personId: pid,
         schoolId: sid,
-        classBlockId: cid,
       },
     });
     if (!student) {
@@ -63,7 +62,6 @@ module.exports.takeQuiz = async (req, res, next) => {
       scores.create({
         questId: data.question,
         personId: pid,
-        classblockId: cid,
         quizId: quid,
         score: 0,
       });
@@ -117,7 +115,7 @@ module.exports.submitQuestion = async (req, res, next) => {
     const totalMark = quiz.totalMarks;
     const markPerQuestion = quiz.marks;
     //retrieve question set for student
-    let studentQuest = await studentQuestion.findById(mquid);
+    const studentQuest = await studentQuestion.findById(mquid);
     //mark student's question
     const result = mark(studentQuest.questions, markPerQuestion);
     //update studen't question doc with appropriate info

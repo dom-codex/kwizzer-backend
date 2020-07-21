@@ -7,8 +7,8 @@ const studentControllers = require("../controllers/student");
 /** route for School signup */
 router.post("/create", schoolControllers.createSchool);
 router.post("/login", schoolControllers.loginSchool);
-router.post("/class/create", schoolControllers.createClassBlock);
-router.post("/class/add/teacher", schoolControllers.addTeacher);
+//router.post("/class/create", schoolControllers.createClassBlock);
+//router.post("/class/add/teacher", schoolControllers.addTeacher);
 router.post("/class/enroll/student", schoolControllers.enrollStudent);
 //tutor specific route
 router.post("/class/create/quiz", schoolControllers.setQuiz);
