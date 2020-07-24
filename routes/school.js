@@ -13,8 +13,10 @@ router.post("/class/enroll/student", schoolControllers.enrollStudent);
 //tutor specific route
 router.post("/class/create/quiz", schoolControllers.setQuiz);
 router.post("/class/create/question", schoolControllers.setQuestion);
-router.get("/class/update/question", schoolControllers.updateQuestion);
-router.get("/class/quiz/all", schoolControllers.retrieveAllClassQuiz);
+router.get("/class/get/question", schoolControllers.getSingleQuestion);
+router.post("/class/update/question", schoolControllers.updateQuestion);
+router.get("/class/quiz/all", schoolControllers.retrieveQuizzes);
+router.get("/class/questions/all", schoolControllers.getAllQuizQuestions);
 //student specific route
 router.post("/student/quiz", studentControllers.takeQuiz);
 router.post(

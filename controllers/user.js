@@ -39,7 +39,22 @@ module.exports.loginUser = async (req, res, next) => {
     });
   }
   res.json({
-    code: 200,
+    code: 201,
+    user: person[0].ref,
     message: "authenticated",
+  });
+};
+module.exports.findUser = async (req, res, next) => {
+  const { ref } = req.query;
+  const person = await Person.findOne({ where: { ref: ref } });
+  if (!person) {
+    return res.json({
+      code: 400,
+      message: "no user was found",
+    });
+  }
+  return res.json({
+    code: 201,
+    user: person,
   });
 };

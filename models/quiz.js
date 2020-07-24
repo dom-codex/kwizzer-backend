@@ -15,5 +15,9 @@ const Quiz = sequelize.define("quiz", {
   choice: Sequelize.STRING,
   totalMarks: Sequelize.INTEGER,
   marks: Sequelize.DOUBLE,
+  hours: Sequelize.INTEGER,
+  minutes: Sequelize.INTEGER,
+  seconds: Sequelize.INTEGER,
+  nQuestions: Sequelize.INTEGER,
 });
 module.exports = Quiz;

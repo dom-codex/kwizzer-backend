@@ -8,22 +8,31 @@ const Quiz = require("../models/quiz");
 const Question = require("../models/questions");
 const Options = require("../models/options");
 //model imports
+const crypto = require("crypto");
 const formatQuizAndQuestion = require("../helpers/fomatQuizOutput").formatQuiz;
+const formatOptions = require("../helpers/formatOptions").formatOptions;
 //custom imports
 module.exports.createSchool = async (req, res, next) => {
   //retrieve details from form body
-  const { owner, name, description, email, password } = req.body;
+  const { owner, name, email, password } = req.body;
   const hashedPasword = await bcrypt.hash(password, 12);
-  const schowner = await Person.findByPk(owner);
-  const school = await schowner.createSchool({
-    name: name,
-    description: description,
-    email: email,
-    password: hashedPasword,
-  });
-  res.json({
-    code: 201,
-    message: "school created!!!",
+  const schowner = await Person.findOne({ where: { ref: owner } });
+  crypto.randomBytes(20, async (err, buffer) => {
+    const ref = buffer.toString("hex");
+    const school = await schowner.createSchool({
+      name: name,
+      ref: ref,
+      description: "a school",
+      email: email,
+      password: hashedPasword,
+    });
+    res.json({
+      code: 200,
+      school: {
+        ref: ref,
+      },
+      message: "school created!!!",
+    });
   });
 };
 module.exports.loginSchool = async (req, res, next) => {
@@ -40,6 +49,7 @@ module.exports.loginSchool = async (req, res, next) => {
       });
     }
     return res.json({
+      school: sch[0],
       code: 200,
       message: "authenticated!!!",
     });
@@ -105,11 +115,29 @@ module.exports.removeTeacher = async (req, res, next) => {
 module.exports.setQuiz = async (req, res, next) => {
   try {
     /**get teachers id and the school and class id which the quiz belongs to */
-    const { title, tid, sid } = req.body;
+    const {
+      title,
+      markPerQuestion,
+      noOfQuestionForStud,
+      totalMarks,
+      resultDelivery,
+      hours,
+      min,
+      sec,
+      school,
+    } = req.body;
+    const sch = await School.findOne({ where: { ref: school } });
+
     const quiz = await Quiz.create({
       title: title,
-      personId: tid,
-      schoolId: sid,
+      schoolId: sch.id,
+      marks: markPerQuestion,
+      totalMarks: totalMarks,
+      nQuestions: noOfQuestionForStud,
+      choice: "onsubmit",
+      hours: hours,
+      minutes: min,
+      seconds: sec,
     });
     res.json({
       code: 200,
@@ -117,17 +145,36 @@ module.exports.setQuiz = async (req, res, next) => {
     });
   } catch (err) {}
 };
-module.exports.retrieveAllClassQuiz = async (req, res, next) => {
-  //retrieve classblock id from query param
-  const { cbId } = req.query;
-  if (!cbId)
+module.exports.retrieveQuizzes = async (req, res, next) => {
+  const { sid } = req.query;
+  if (!sid)
     return res.json({
       code: 401,
       message: "classblock does not exist",
     });
-  //retrieve all quiz associated with classblock
+  //find school
+  const sch = await School.findOne({ where: { ref: sid } });
+  //retrieve all quiz associated with school
   const quizzes = await Quiz.findAll({
-    where: { classblockId: cbId },
+    where: { schoolId: sch.id },
+    // include: Person,
+  });
+  res.json({
+    code: 200,
+    quizzes: quizzes,
+  });
+};
+module.exports.retrieveAllClassQuiz = async (req, res, next) => {
+  //retrieve classblock id from query param
+  const { sid } = req.query;
+  if (!sid)
+    return res.json({
+      code: 401,
+      message: "classblock does not exist",
+    });
+  //retrieve all quiz associated with school
+  const quizzes = await Quiz.findAll({
+    where: { schoolId: schId },
     include: Person,
   });
   const questions = await Question.findAll({
@@ -144,6 +191,16 @@ module.exports.retrieveAllClassQuiz = async (req, res, next) => {
   res.json({
     code: 200,
     quizzes: formattedQuiz,
+  });
+};
+module.exports.getAllQuizQuestions = async (req, res, next) => {
+  const { quid } = req.query;
+  const questions = await Question.findAll({
+    where: { quizId: quid },
+    include: [Options],
+  });
+  res.json({
+    questions: questions,
   });
 };
 module.exports.deleteQuiz = async (req, res, next) => {
@@ -176,7 +233,8 @@ module.exports.setQuestion = async (req, res, next) => {
   try {
     //retrive quiz id from request body
     //options should be an array of option object with an is answer field set
-    const { quid, question, options } = req.body;
+    const { quid } = req.query;
+    const { question, options, answer } = req.body;
     //retrive quiz
     const quiz = await Quiz.findByPk(quid);
     const test = await Question.create({
@@ -184,8 +242,9 @@ module.exports.setQuestion = async (req, res, next) => {
       questionUrl: "",
       quizId: quid,
     });
+    const myoptions = formatOptions(options, answer);
     //loop through the options
-    options.forEach(async (option) => {
+    myoptions.forEach(async (option) => {
       await test.createOption({
         isAnswer: option.isAnswer,
         option: option.option,
@@ -197,35 +256,45 @@ module.exports.setQuestion = async (req, res, next) => {
     });
   } catch (err) {}
 };
+module.exports.getSingleQuestion = async (req, res, next) => {
+  const { qu } = req.query;
+  //qu == question id
+  const question = await Question.findOne({
+    where: { id: qu },
+    include: Options,
+  });
+  res.json({
+    question: question,
+  });
+};
 module.exports.editQuiz = async (req, res, next) => {};
 module.exports.updateQuestion = async (req, res, next) => {
   //retrieve question id from the request body
-  //qref === question id
-  //tref === teacher id
-  //quiref ===  quiz id
-  const { qref, tref, quiref } = req.query;
-  //find teacher
-  const teacher = await Person.findOne({ where: { id: tref } });
-  const quiz = await Quiz.findOne({ where: { id: quiref } });
-  if (!qref)
-    return res.json({
-      code: 401,
-      message: "no question found",
-    });
-  if (!teacher && !quiz)
-    return res.json({
-      code: 401,
-      message: "invalid parameters",
-    });
-  const questions = await Question.findByPk(qref, { include: Options });
+  const { quid } = req.query;
+  const { question, options, answer } = req.body;
+
+  const questions = await Question.findOne(
+    {
+      where: { id: quid },
+    },
+    { include: Options }
+  );
   if (!questions)
     return res.json({
       code: 401,
       message: "no question found",
     });
+  const myoptions = formatOptions(options, answer);
+  questions.question = question;
+  await questions.save();
+  const opts = await Options.findAll({ where: { questionId: quid } });
+  opts.forEach(async (o, i) => {
+    o.option = myoptions[i].option;
+    o.isAnswer = myoptions[i].isAnswer;
+    await o.save();
+  });
   res.json({
-    code: 200,
-    questions: questions,
+    code: 201,
   });
 };
 module.exports.enrollStudent = async (req, res, next) => {
