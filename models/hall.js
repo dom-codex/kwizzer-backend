@@ -1,12 +1,13 @@
 const Sequelize = require("sequelize");
 const sequelize = require("../utils/database");
 
-const Classroom = sequelize.define("classroom", {
+const Hall = sequelize.define("hall", {
   id: {
     type: Sequelize.INTEGER,
     autoIncrement: true,
     allowNull: false,
     primaryKey: true,
   },
+  completed: Sequelize.BOOLEAN,
 });
-module.exports = Classroom;
+module.exports = Hall;

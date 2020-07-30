@@ -40,7 +40,7 @@ module.exports.loginUser = async (req, res, next) => {
   }
   res.json({
     code: 201,
-    user: person[0].ref,
+    user: person[0],
     message: "authenticated",
   });
 };

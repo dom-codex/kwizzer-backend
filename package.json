@@ -16,7 +16,8 @@
     "mongoose": "^5.9.23",
     "mysql2": "^2.1.0",
     "node-fetch": "^2.6.0",
-    "sequelize": "^6.3.3"
+    "sequelize": "^6.3.3",
+    "socket.io": "^2.3.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.4"

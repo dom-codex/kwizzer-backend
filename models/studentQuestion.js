@@ -1,10 +1,13 @@
 const mongoose = require("mongoose");
 const schema = mongoose.Schema;
 const StudentQuestionSchema = new schema({
+  title: schema.Types.String,
   quiz: schema.Types.Number,
   school: schema.Types.Number,
   classBlock: schema.Types.Number,
+  noOfQuestions: schema.Types.Number,
   student: schema.Types.Number,
+  retries: schema.Types.Number,
   isComplete: {
     type: schema.Types.Boolean,
     default: false,
