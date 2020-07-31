@@ -11,5 +11,6 @@ const SchoolNotification = sequelize.define("schoolNotification", {
   message: Sequelize.STRING,
   time: Sequelize.STRING,
   topic: Sequelize.STRING,
+  isNew: Sequelize.BOOLEAN,
 });
 module.exports = SchoolNotification;

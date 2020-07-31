@@ -130,6 +130,9 @@ module.exports.setQuiz = async (req, res, next) => {
       hours,
       min,
       sec,
+      publish,
+      retry,
+      retries,
       school,
     } = req.body;
     const sch = await School.findOne({ where: { ref: school } });
@@ -140,14 +143,17 @@ module.exports.setQuiz = async (req, res, next) => {
       marks: markPerQuestion,
       totalMarks: totalMarks,
       nQuestions: noOfQuestionForStud,
-      choice: "onsubmit",
+      choice: resultDelivery,
       hours: hours,
       minutes: min,
       seconds: sec,
+      mode: publish,
+      canReTake: retry,
+      retries: retries,
     });
     res.json({
       code: 200,
-      message: "class created successfully!!!",
+      message: "quiz created successfully!!!",
     });
   } catch (err) {}
 };
@@ -241,17 +247,41 @@ module.exports.getAllQuizQuestions = async (req, res, next) => {
 module.exports.deleteQuiz = async (req, res, next) => {
   //retrieve quiz creator details
   const { sid, quid } = req.query;
+  const sch = await School.findOne({
+    where: { ref: sid },
+  });
+  const quiz = await Quiz.findOne({
+    where: { id: quid },
+    include: School,
+  });
+  const registeredStudents = await Hall.findAll({ where: { quizId: quid } });
+  const students = registeredStudents.map((stud) => {
+    return stud.personId;
+  });
   const destroyedQuiz = await Quiz.destroy({
     where: {
-      schoolId: sid,
+      schoolId: sch.id,
       id: quid,
     },
   });
-  if (!destroyedQuiz)
-    return res.json({
-      code: 401,
-      message: "you don't have sufficient permission to delete this quiz",
+  //check info returned after deletion later
+  students.forEach(async (stud) => {
+    await studentNotification.create({
+      message: `${quiz.title} has been deleted thus you can no longer take this quiz and it wont't appear in your list of quiz`,
+      personId: stud,
+      schoolName: quiz.school.name,
+      time: "12:00pm",
     });
+  });
+  students.forEach((uid) => {
+    io.getIO()
+      .to(uid)
+      .emit("notify", {
+        message: `${quiz.title} has been deleted thus you can no longer take this quiz and it wont't appear in your list of quiz`,
+        schoolName: quiz.school.name,
+        time: "12:00pm",
+      });
+  });
   return res.json({
     code: 201,
     message: "quiz successfully deleted!!!",
@@ -278,6 +308,8 @@ module.exports.setQuestion = async (req, res, next) => {
         option: option.option,
       });
     });
+    quiz.totalQuestions = quiz.totalQuestions + 1;
+    await quiz.save();
     res.json({
       code: 201,
       message: "question created successfully",
@@ -331,6 +363,13 @@ module.exports.publishQuiz = async (req, res, next) => {
     where: { id: id },
     include: School,
   });
+  //perform some checks to ensure minimum no of questions is set
+  if (quiz.totalQuestions < quiz.nQuestions) {
+    return res.json({
+      code: 400,
+      message: "total no of questions too small",
+    });
+  }
   quiz.published = true;
   quiz = await quiz.save();
   //classrooms will hold published quiz id
@@ -365,6 +404,7 @@ module.exports.publishQuiz = async (req, res, next) => {
   });
   res.json({
     code: 201,
+    message: "published successfully!!!",
   });
 };
 module.exports.listPublishedQuiz = async (req, res, next) => {
@@ -404,6 +444,12 @@ module.exports.listRegisteredCandidates = async (req, res, next) => {
       where: { quizId: quiz, schoolId: sch },
       include: Person,
     });
+    if (!hallstud.length) {
+      return res.json({
+        code: 400,
+        message: "No student has registered",
+      });
+    }
     res.json({
       hall: hallstud,
     });

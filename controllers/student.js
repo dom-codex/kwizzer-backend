@@ -30,6 +30,7 @@ module.exports.regForQuiz = async (req, res, next) => {
     personId: person.id,
     schoolId: sid,
   });
+  await quiz.save();
   const notify = await adminNotifications.create({
     topic: `${quiz.title} quiz registration`,
     message: `${person.name} has been successfully registered!!!`,
@@ -53,12 +54,10 @@ module.exports.getAppliedQuiz = async (req, res, next) => {
     },
     include: [School, Quiz],
   });
-  //check if quiz has already been taken
-  const ids = quizzes.map((quiz) => {
-    return quiz.quizId;
-  });
+  //filter out null quizzes
+  const newQuizzes = quizzes.filter((quiz) => quiz.quizId != null);
   res.json({
-    quizzes: quizzes,
+    quizzes: newQuizzes,
   });
 };
 
@@ -229,6 +228,8 @@ module.exports.submitQuestion = async (req, res, next) => {
         time: "5:01am",
         schoolId: quiz.school.id,
       });
+      quiz.NumberOfSubmitted = quiz.NumberOfSubmitted + 1;
+      await quiz.save();
       io.getIO()
         .to(quiz.school.ref)
         .emit("notify", {
