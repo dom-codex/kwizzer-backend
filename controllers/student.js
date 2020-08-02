@@ -85,6 +85,7 @@ module.exports.takeQuiz = async (req, res, next) => {
     //find quiz
     const selectedQuiz = await Quiz.findOne({
       where: { id: quiz },
+      include: School,
     });
     //get no of approved question to be  answered
     const toAnswer = selectedQuiz.nQuestions;
@@ -128,6 +129,7 @@ module.exports.takeQuiz = async (req, res, next) => {
           title: selectedQuiz.title,
           canRetake: selectedQuiz.canReTake,
           retries: selectedQuiz.retries,
+          schoolname: selectedQuiz.school.name,
         }),
       }
     );

@@ -17,6 +17,7 @@ const studentQuestion = require("../models/studentQuestion");
 const formatQuizAndQuestion = require("../helpers/fomatQuizOutput").formatQuiz;
 const formatOptions = require("../helpers/formatOptions").formatOptions;
 const io = require("../socket");
+const { validateNewQuizData } = require("../helpers/newQuizValidator");
 //custom imports
 module.exports.createSchool = async (req, res, next) => {
   //retrieve details from form body
@@ -135,6 +136,14 @@ module.exports.setQuiz = async (req, res, next) => {
       retries,
       school,
     } = req.body;
+    //perform basic checks
+    const result = validateNewQuizData(req);
+    if (!result.result) {
+      return res.json({
+        code: 403,
+        message: result.message,
+      });
+    }
     const sch = await School.findOne({ where: { ref: school } });
 
     const quiz = await Quiz.create({
@@ -410,9 +419,13 @@ module.exports.publishQuiz = async (req, res, next) => {
 module.exports.listPublishedQuiz = async (req, res, next) => {
   const { sch } = req.query;
   //find listPublishedQuiz
+
+  const school = await School.findOne({
+    where: { id: 3 },
+  });
   const quizzes = await Quiz.findAll({
     where: {
-      schoolId: sch,
+      schoolId: school.id,
       published: true,
     },
   });
@@ -435,6 +448,21 @@ module.exports.listPublishedQuiz = async (req, res, next) => {
   });
   res.json({
     quizzes: reformed,
+  });
+};
+module.exports.listOnlyPublishedQuiz = async (req, res, next) => {
+  const { sch } = req.query;
+  //find school
+  const school = await School.findOne({
+    where: { ref: sch },
+  });
+  const published = await Classroom.findAll({
+    where: { schoolId: school.id },
+    include: Quiz,
+  });
+  res.json({
+    code: 200,
+    published: published,
   });
 };
 module.exports.listRegisteredCandidates = async (req, res, next) => {

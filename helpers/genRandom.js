@@ -1,11 +1,12 @@
-module.exports.genRandomNumbers = (alreadyGen, questionLength) => {
+module.exports.genRandomNumbers = (alreadyGen = [], questionLength) => {
   const n = Math.floor(Math.random() * questionLength) + 1;
+  const ran = [];
   //check if no has been generated before
-  const isGen = alreadyGen.some((num) => num === n);
+  const isGen = ran.some((num) => num === n);
   if (isGen) {
-    return this.genRandomNumbers(alreadyGen, questionLength);
+    return this.genRandomNumbers(ran, questionLength);
   } else {
-    alreadyGen.push(n);
+    ran.push(n);
     return n;
   }
 };

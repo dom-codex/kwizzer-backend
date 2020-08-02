@@ -21,6 +21,9 @@ const schoolRoutes = require("./routes/school");
 const Quiz = require("./models/quiz");
 const studNotification = require("./models/studentNotification");
 const schNotification = require("./models/schoolNotification");
+const exam = require("./models/exam");
+const examPaper = require("./models/examPaper");
+const examscore = require("./models/examScore");
 //custom imports
 const app = express();
 const server = http.createServer(app);
@@ -82,6 +85,20 @@ studNotification.belongsTo(person, { constraints: true, onDelete: "CASCADE" });
 Hall.belongsTo(person);
 Hall.belongsTo(Quiz);
 Hall.belongsTo(school);
+
+exam.belongsTo(school, { constraints: true, onDelete: "CASCADE" });
+quiz.belongsToMany(exam, {
+  through: examPaper,
+  constraints: true,
+  onDelete: "CASCADE",
+});
+examPaper.belongsTo(quiz, {
+  constraints: true,
+  onDelete: "CASCADE",
+});
+examscore.belongsTo(exam, { constraints: true, onDelete: "CASCADE" });
+examscore.belongsTo(person, { constraints: true, onDelete: "CASCADE" });
+examscore.belongsTo(school, { constraints: true, onDelete: "CASCADE" });
 //classBlock.hasMany(scoreboard);
 sequelize
   .sync()

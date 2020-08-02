@@ -1,13 +1,10 @@
 const mongoose = require("mongoose");
 const schema = mongoose.Schema;
-const StudentQuestionSchema = new schema({
+const ExamQuestionSchema = new schema({
   title: schema.Types.String,
-  quiz: schema.Types.Number,
+  quiz: [schema.Types.Number],
   school: schema.Types.Number,
-  classBlock: schema.Types.Number,
-  noOfQuestions: schema.Types.Number,
   student: schema.Types.Number,
-  retries: schema.Types.Number,
   schoolName: schema.Types.String,
   isComplete: {
     type: schema.Types.Boolean,
@@ -37,15 +34,19 @@ const StudentQuestionSchema = new schema({
     type: schema.Types.Number,
     default: 0,
   },
-  questions: [
-    {
-      question: schema.Types.String,
-      questionUrl: schema.Types.String,
-      answered: schema.Types.Boolean,
-      questIndex: schema.Types.Number,
-      answer: schema.Types.String,
-      options: schema.Types.Array,
-    },
+  quizzes: [
+    /* {
+      title: schema.Types.String,
+      noOfQuestions: schema.Types.Number,
+      questions: {
+        question: schema.Types.String,
+        questionUrl: schema.Types.String,
+        answered: schema.Types.Boolean,
+        questIndex: schema.Types.Number,
+        answer: schema.Types.String,
+        options: schema.Types.Array,
+      },
+    },*/
   ],
 });
-module.exports = mongoose.model("StudentQuestion", StudentQuestionSchema);
+module.exports = mongoose.model("ExamQuestion", ExamQuestionSchema);
