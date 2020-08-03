@@ -101,7 +101,7 @@ examscore.belongsTo(person, { constraints: true, onDelete: "CASCADE" });
 examscore.belongsTo(school, { constraints: true, onDelete: "CASCADE" });
 //classBlock.hasMany(scoreboard);
 sequelize
-  .sync()
+  .sync({ alter: true })
   .then((_) => {
     mongoose.connect("mongodb://127.0.0.1:27017/learned").then((_) => {
       server.listen(3500);

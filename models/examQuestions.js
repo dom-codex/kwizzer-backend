@@ -35,18 +35,21 @@ const ExamQuestionSchema = new schema({
     default: 0,
   },
   quizzes: [
-    /* {
+    {
       title: schema.Types.String,
       noOfQuestions: schema.Types.Number,
-      questions: {
-        question: schema.Types.String,
-        questionUrl: schema.Types.String,
-        answered: schema.Types.Boolean,
-        questIndex: schema.Types.Number,
-        answer: schema.Types.String,
-        options: schema.Types.Array,
-      },
-    },*/
+      marksPerQuestion: schema.Types.Number,
+      questions: [
+        {
+          question: schema.Types.String,
+          questionUrl: schema.Types.String,
+          answered: schema.Types.Boolean,
+          questIndex: schema.Types.Number,
+          answer: schema.Types.String,
+          options: schema.Types.Array,
+        },
+      ],
+    },
   ],
 });
 module.exports = mongoose.model("ExamQuestion", ExamQuestionSchema);

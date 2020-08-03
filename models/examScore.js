@@ -10,5 +10,6 @@ const ExamScore = sequelize.define("Examscore", {
   },
   Examscore: { type: Sequelize.DOUBLE, default: 0.0 },
   examsheet: Sequelize.STRING,
+  completed: Sequelize.BOOLEAN,
 });
 module.exports = ExamScore;

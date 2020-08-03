@@ -8,6 +8,5 @@ const ExamPaper = sequelize.define("examPaper", {
     allowNull: false,
     primaryKey: true,
   },
-  completed: Sequelize.BOOLEAN,
 });
 module.exports = ExamPaper;

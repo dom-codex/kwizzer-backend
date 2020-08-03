@@ -38,6 +38,7 @@ module.exports.initExamQuestion = (
     studentQuestions.push({
       title: quiz.title,
       noOfQuestions: quiz.nQuestions,
+      marksPerQuestion: quiz.marks,
       questions: questionsToAnswer,
     });
   }
