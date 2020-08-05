@@ -83,6 +83,9 @@ module.exports.takeQuiz = async (req, res, next) => {
     //get questions with the related quiz id
     /* const quiz = await Quiz.findByPk(quid);*/
     //find quiz
+    const person = await Person.findOne({
+      where: { id: pid },
+    });
     const selectedQuiz = await Quiz.findOne({
       where: { id: quiz },
       include: School,
@@ -130,6 +133,7 @@ module.exports.takeQuiz = async (req, res, next) => {
           canRetake: selectedQuiz.canReTake,
           retries: selectedQuiz.retries,
           schoolname: selectedQuiz.school.name,
+          person: person.name,
         }),
       }
     );

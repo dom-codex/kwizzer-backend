@@ -7,10 +7,10 @@ module.exports.storeExamQuizzes = async (
   todelete = [],
   tocreate = []
 ) => {
-  const quiz = Object.values(quizzes).map((quiz) => quiz);
+  // const quiz = Object.values(quizzes).map((quiz) => quiz);
   let papers = [];
   if (!edit) {
-    papers = quiz.map((quid) => {
+    papers = quizzes.map((quid) => {
       return { examId: examId, quizId: quid };
     });
     const exampaper = await ExamPaper.bulkCreate(papers, { validate: true });

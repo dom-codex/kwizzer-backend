@@ -7,6 +7,7 @@ const StudentQuestionSchema = new schema({
   classBlock: schema.Types.Number,
   noOfQuestions: schema.Types.Number,
   student: schema.Types.Number,
+  studentName: schema.Types.String,
   retries: schema.Types.Number,
   schoolName: schema.Types.String,
   isComplete: {

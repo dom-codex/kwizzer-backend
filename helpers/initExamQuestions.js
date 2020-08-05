@@ -9,7 +9,6 @@ module.exports.initExamQuestion = (
   exam,
   quids
 ) => {
-  const ran = [];
   const studentQuestions = [];
   for (let i = 0; i < quizzes.length; i++) {
     const quiz = quizzes[i];
@@ -44,6 +43,7 @@ module.exports.initExamQuestion = (
   }
   return ExamSheet.create({
     title: exam.name,
+    studentName: person.name,
     quiz: quids,
     school: school.id,
     student: person.id,

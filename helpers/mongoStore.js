@@ -2,7 +2,7 @@ const StudentQuestion = require("../models/studentQuestion");
 const Hall = require("../models/hall");
 module.exports.initQuestionsOnMongo = async (req, res, next) => {
   const { pid, sch, quiz } = req.body.body;
-  const { questions, title, canRetake, retries, schoolname } = req.body;
+  const { questions, title, canRetake, retries, schoolname, person } = req.body;
   const { retry } = req.query;
   const Student = await StudentQuestion.findOne({
     $and: [{ student: pid }, { school: sch }, { quiz: quiz }],
@@ -16,6 +16,7 @@ module.exports.initQuestionsOnMongo = async (req, res, next) => {
       noOFQuestions: questions.length,
       title: title,
       schoolName: schoolname,
+      studentName: person,
     });
     const result = await newStudentQuestion.save();
     return res.json({

@@ -5,6 +5,7 @@ const ExamQuestionSchema = new schema({
   quiz: [schema.Types.Number],
   school: schema.Types.Number,
   student: schema.Types.Number,
+  studentName: schema.Types.String,
   schoolName: schema.Types.String,
   isComplete: {
     type: schema.Types.Boolean,

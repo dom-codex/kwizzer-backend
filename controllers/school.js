@@ -64,61 +64,6 @@ module.exports.loginSchool = async (req, res, next) => {
     console.log("error occured");
   }
 };
-/*module.exports.createClassBlock = async (req, res, next) => {
-  //retrieve details from body
-  //sid === school id
-  try {
-    const { sid, name, description } = req.body;
-    const sch = await School.findByPk(sid);
-    const classblock = await sch.createClassblock({
-      name: name,
-      description: description,
-    });
-    return res.json({
-      code: 201,
-      message: "class created!!!",
-    });
-  } catch (err) {
-    console.log(err.message);
-  }
-};
-module.exports.addTeacher = async (req, res, next) => {
-  try {
-    //retrieve details from body
-    //cid === class id
-    const { cid, sid, email } = req.body;
-    const teacher = await Person.findAll({ where: { email: email } });
-    Teacher.create({
-      schoolId: sid,
-      classblockId: cid,
-      personId: teacher[0].id,
-    });
-    res.json({
-      code: 201,
-      message: "new teacher added",
-    });
-  } catch (e) {
-    console.log(e.message);
-  }
-};
-module.exports.removeTeacher = async (req, res, next) => {
-  //retrieve teachers details
-  const { tref, sid, cid } = req.query;
-  if (!tref && !sid && !cid)
-    return res.json({
-      code: 400,
-      message: "teacher or class block or school does not exist",
-    });
-  const deletedTeacher = await Teacher.destroy({
-    personId: tref,
-    schoolId: sid,
-    classblockId: cid,
-  });
-  res.json({
-    code: 201,
-    message: "teacher removed successfully",
-  });
-};*/
 module.exports.setQuiz = async (req, res, next) => {
   try {
     /**get teachers id and the school and class id which the quiz belongs to */
@@ -165,6 +110,16 @@ module.exports.setQuiz = async (req, res, next) => {
       message: "quiz created successfully!!!",
     });
   } catch (err) {}
+};
+module.exports.getSingleQuiz = async (req, res, next) => {
+  const { quid } = req.query;
+  const quiz = await Quiz.findOne({
+    where: { id: quid },
+  });
+  res.json({
+    code: 200,
+    quiz: quiz,
+  });
 };
 module.exports.retrieveQuizzes = async (req, res, next) => {
   const { sid } = req.query;
@@ -573,9 +528,9 @@ module.exports.viewStudentResult = async (req, res, next) => {
   //get question paper from mongo db
   const questionPapers = await studentQuestion
     .find({ _id: { $in: ids } })
-    .select("_id score totalMarks fails totalAnswered isComplete")
+    .select("-questions")
     .sort({ score: -1 });
-  const studentsResult = [];
+  /*const studentsResult = [];
   questionPapers.forEach((q) => {
     const student = scores.find(
       (score) => score.questId.toString() === q._id.toString()
@@ -584,10 +539,10 @@ module.exports.viewStudentResult = async (req, res, next) => {
       name: student.person.name,
       ...q._doc,
     });
-  });
+  });*/
   res.json({
     code: 200,
-    result: studentsResult,
+    result: questionPapers,
   });
 };
 module.exports.adminNotifications = async (req, res, next) => {
