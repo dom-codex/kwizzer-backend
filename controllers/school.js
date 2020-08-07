@@ -72,13 +72,6 @@ module.exports.setQuiz = async (req, res, next) => {
       markPerQuestion,
       noOfQuestionForStud,
       totalMarks,
-      resultDelivery,
-      hours,
-      min,
-      sec,
-      publish,
-      retry,
-      retries,
       school,
     } = req.body;
     //perform basic checks
@@ -90,20 +83,17 @@ module.exports.setQuiz = async (req, res, next) => {
       });
     }
     const sch = await School.findOne({ where: { ref: school } });
-
-    const quiz = await Quiz.create({
-      title: title,
-      schoolId: sch.id,
-      marks: markPerQuestion,
-      totalMarks: totalMarks,
-      nQuestions: noOfQuestionForStud,
-      choice: resultDelivery,
-      hours: hours,
-      minutes: min,
-      seconds: sec,
-      mode: publish,
-      canReTake: retry,
-      retries: retries,
+    crypto.randomBytes(20, async (err, buffer) => {
+      const token = buffer.toString("hex");
+      const quiz = await Quiz.create({
+        title: title,
+        schoolId: sch.id,
+        marks: markPerQuestion,
+        totalMarks: totalMarks,
+        nQuestions: noOfQuestionForStud,
+        ref: token,
+        published: false,
+      });
     });
     res.json({
       code: 200,
@@ -129,7 +119,7 @@ module.exports.retrieveQuizzes = async (req, res, next) => {
       message: "classblock does not exist",
     });
   //find school
-  const sch = await School.findOne({ where: { ref: sid } });
+  const sch = await School.findOne({ where: { ref: sid }, attributes: ["id"] });
   //retrieve all quiz associated with school
   const quizzes = await Quiz.findAll({
     where: { schoolId: sch.id },
@@ -142,20 +132,22 @@ module.exports.retrieveQuizzes = async (req, res, next) => {
 };
 module.exports.editQuiz = async (req, res, next) => {
   const { quizid } = req.query;
-  const { name, mark, total, hr, min, sec, pubMode, nQuestions } = req.body;
-
-  const quiz = await Quiz.findOne({ where: { id: quizid } });
+  const { name, mark, total, nQuestions } = req.body;
+  const quiz = await Quiz.findOne({
+    attributes: {
+      exclude: ["schoolId", "createdAt", "updatedAt", "published"],
+    },
+    where: { ref: quizid },
+  });
   quiz.title = name;
   quiz.marks = mark;
-  (quiz.totalMarks = total), (quiz.hours = hr);
-  (quiz.minutes = min), (quiz.seconds = sec), (quiz.mode = pubMode);
-  quiz.nQuestions = nQuestions;
+  (quiz.totalMarks = total), (quiz.nQuestions = nQuestions);
   await quiz.save();
   res.json({
     code: 201,
   });
 };
-module.exports.retrieveAllClassQuiz = async (req, res, next) => {
+/*module.exports.retrieveAllClassQuiz = async (req, res, next) => {
   //retrieve classblock id from query param
   const { sid } = req.query;
   if (!sid)
@@ -183,26 +175,26 @@ module.exports.retrieveAllClassQuiz = async (req, res, next) => {
     code: 200,
     quizzes: formattedQuiz,
   });
-};
+};*/
 module.exports.getAllQuizQuestions = async (req, res, next) => {
   const { quid } = req.query;
-
-  const questions = await Question.findAll({
-    where: { quizId: quid },
-    include: [Options],
-  });
   //get quiz
-  const quiz = await Quiz.findOne({ where: { id: quid } });
+  const quiz = await Quiz.findOne({
+    attributes: {
+      exclude: ["schoolId", "createdAt", "updatedAt", "published"],
+    },
+    where: { ref: quid },
+  });
   const myquiz = {
     name: quiz.title,
-    hr: quiz.hours,
-    min: quiz.minutes,
-    sec: quiz.seconds,
-    pubMode: quiz.mode,
     total: quiz.totalMarks,
     mark: quiz.marks,
     nQuestions: quiz.nQuestions,
   };
+  const questions = await Question.findAll({
+    where: { quizId: quiz.id },
+    include: [Options],
+  });
   res.json({
     questions: questions,
     quiz: myquiz,
@@ -229,7 +221,7 @@ module.exports.deleteQuiz = async (req, res, next) => {
     },
   });
   //check info returned after deletion later
-  students.forEach(async (stud) => {
+  /*students.forEach(async (stud) => {
     await studentNotification.create({
       message: `${quiz.title} has been deleted thus you can no longer take this quiz and it wont't appear in your list of quiz`,
       personId: stud,
@@ -245,7 +237,7 @@ module.exports.deleteQuiz = async (req, res, next) => {
         schoolName: quiz.school.name,
         time: "12:00pm",
       });
-  });
+  });*/
   return res.json({
     code: 201,
     message: "quiz successfully deleted!!!",
@@ -258,11 +250,14 @@ module.exports.setQuestion = async (req, res, next) => {
     const { quid } = req.query;
     const { question, options, answer } = req.body;
     //retrive quiz
-    const quiz = await Quiz.findByPk(quid);
+    const quiz = await Quiz.findOne({
+      where: { ref: quid },
+      attributes: ["id", "totalQuestions"],
+    });
     const test = await Question.create({
       question: question,
       questionUrl: "",
-      quizId: quid,
+      quizId: quiz.id,
     });
     const myoptions = formatOptions(options, answer);
     //loop through the options
@@ -281,10 +276,14 @@ module.exports.setQuestion = async (req, res, next) => {
   } catch (err) {}
 };
 module.exports.getSingleQuestion = async (req, res, next) => {
-  const { qu } = req.query;
+  const { qu, quiz } = req.query;
   //qu == question id
+  const myQuiz = await Quiz.findOne({
+    where: { ref: quiz },
+    attributes: ["id"],
+  });
   const question = await Question.findOne({
-    where: { id: qu },
+    where: { QuizId: myQuiz.id, id: qu },
     include: Options,
   });
   res.json({
@@ -293,12 +292,15 @@ module.exports.getSingleQuestion = async (req, res, next) => {
 };
 module.exports.updateQuestion = async (req, res, next) => {
   //retrieve question id from the request body
-  const { quid } = req.query;
+  const { quid, quiz } = req.query;
   const { question, options, answer } = req.body;
-
+  const myQuiz = await Quiz.findOne({
+    where: { ref: quiz },
+    attributes: ["id"],
+  });
   const questions = await Question.findOne(
     {
-      where: { id: quid },
+      where: { id: quid, quizId: myQuiz.id },
     },
     { include: Options }
   );
@@ -321,11 +323,12 @@ module.exports.updateQuestion = async (req, res, next) => {
   });
 };
 module.exports.publishQuiz = async (req, res, next) => {
-  const { id } = req.body;
+  const { ref } = req.body;
   //find quiz
   let quiz = await Quiz.findOne({
-    where: { id: id },
-    include: School,
+    where: { ref: ref },
+    attributes: ["id", "published", "schoolId"],
+    // include: School,
   });
   //perform some checks to ensure minimum no of questions is set
   if (quiz.totalQuestions < quiz.nQuestions) {
@@ -342,7 +345,7 @@ module.exports.publishQuiz = async (req, res, next) => {
     schoolId: quiz.schoolId,
   });
   //get all registered candidates
-  const hallStudents = await Hall.findAll({
+  /* const hallStudents = await Hall.findAll({
     where: { quizId: id },
   });
   //get ids
@@ -365,7 +368,7 @@ module.exports.publishQuiz = async (req, res, next) => {
         schoolName: quiz.school.name,
         time: "3:45pm",
       });
-  });
+  });*/
   res.json({
     code: 201,
     message: "published successfully!!!",
@@ -376,7 +379,7 @@ module.exports.listPublishedQuiz = async (req, res, next) => {
   //find listPublishedQuiz
 
   const school = await School.findOne({
-    where: { id: 3 },
+    where: { id: 50 },
   });
   const quizzes = await Quiz.findAll({
     where: {
@@ -420,7 +423,7 @@ module.exports.listOnlyPublishedQuiz = async (req, res, next) => {
     published: published,
   });
 };
-module.exports.listRegisteredCandidates = async (req, res, next) => {
+/*module.exports.listRegisteredCandidates = async (req, res, next) => {
   try {
     const { sch, quiz } = req.query;
     const hallstud = await Hall.findAll({
@@ -539,12 +542,12 @@ module.exports.viewStudentResult = async (req, res, next) => {
       name: student.person.name,
       ...q._doc,
     });
-  });*/
+  });
   res.json({
     code: 200,
     result: questionPapers,
   });
-};
+};*/
 module.exports.adminNotifications = async (req, res, next) => {
   const { sch } = req.query;
   //get school

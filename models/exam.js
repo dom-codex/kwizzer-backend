@@ -18,7 +18,10 @@ const Exam = sequelize.define("exam", {
   hours: Sequelize.STRING,
   minutes: Sequelize.STRING,
   seconds: Sequelize.STRING,
+  ref: Sequelize.STRING,
   resultDelivery: Sequelize.STRING,
   noOfStudents: { type: Sequelize.INTEGER, default: 0 },
+  canRetry: { type: Sequelize.BOOLEAN, default: false },
+  retries: { type: Sequelize.INTEGER, default: 0 },
 });
 module.exports = Exam;

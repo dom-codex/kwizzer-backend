@@ -1,3 +1,4 @@
+const Crypto = require("crypto");
 const Exam = require("../models/exam");
 const ExamPaper = require("../models/examPaper");
 const School = require("../models/school");
@@ -6,43 +7,66 @@ const Questions = require("../models/questions");
 const Options = require("../models/options");
 const ExamScore = require("../models/examScore");
 const ExamSheet = require("../models/examQuestions");
+const studentNotification = require("../models/studentNotification");
+const adminNotifications = require("../models/schoolNotification");
 //models import
 const { storeExamQuizzes } = require("../helpers/storeQuizOnpaper");
 const { initExamQuestion } = require("../helpers/initExamQuestions");
 const Person = require("../models/person");
-const { MarkExamScript } = require("../helpers/markExamination");
+//const { MarkExamScript } = require("../helpers/markExamination");
 const examQuestions = require("../models/examQuestions");
+const io = require("../socket");
+const SchoolNotification = require("../models/schoolNotification");
 module.exports.createExam = async (req, res, next) => {
   const { sch } = req.query;
   //find sch
+
   const school = await School.findOne({
     where: { ref: sch },
   });
-  const { title, nquiz, total, hr, min, sec, quiz, choice, type } = req.body;
-  const exam = await Exam.create({
-    name: title,
-    nQuiz: nquiz,
-    TotalMarks: total,
-    hours: hr,
-    minutes: min,
-    seconds: sec,
-    resultDelivery: choice,
-    schoolId: school.id,
-    type: type,
+  const {
+    title,
+    nquiz,
+    total,
+    hr,
+    min,
+    sec,
+    quiz,
+    choice,
+    type,
+    setRetry,
+    retries,
+  } = req.body;
+  Crypto.randomBytes(20, async (err, buffer) => {
+    const token = buffer.toString("hex");
+    const exam = await Exam.create({
+      name: title,
+      nQuiz: nquiz,
+      TotalMarks: total,
+      hours: hr,
+      minutes: min,
+      seconds: sec,
+      resultDelivery: choice,
+      schoolId: school.id,
+      type: type,
+      ref: token,
+      canRetry: setRetry,
+      retries: retries,
+    });
+    if (type === "custom") {
+      res.json({
+        code: 200,
+        message: "exam created",
+      });
+    } else {
+      //initialize exam Paper with quiz
+      await storeExamQuizzes(exam.id, quiz);
+      res.json({
+        code: 200,
+        message: "exam created",
+      });
+    }
   });
-  if (type === "custom") {
-    res.json({
-      code: 200,
-      message: "exam created",
-    });
-  } else {
-    //initialize exam Paper with quiz
-    await storeExamQuizzes(exam.id, quiz);
-    res.json({
-      code: 200,
-      message: "exam created",
-    });
-  }
 };
 module.exports.getExams = async (req, res, next) => {
   const { sch } = req.query;
@@ -60,8 +84,9 @@ module.exports.getExams = async (req, res, next) => {
 module.exports.getAnExam = async (req, res, next) => {
   const { eid } = req.query;
   const exam = await Exam.findOne({
-    where: { id: eid },
+    where: { ref: eid },
   });
+
   res.json({
     code: 200,
     quiz: exam,
@@ -73,7 +98,7 @@ module.exports.getSingleExam = async (req, res, next) => {
     where: { ref: sch },
   });
   const exams = await Exam.findOne({
-    where: { id: exam },
+    where: { ref: exam },
   });
   const quizzes = await ExamPaper.findAll({
     where: { examId: exams.id },
@@ -99,12 +124,12 @@ module.exports.editQuiz = async (req, res, next) => {
     choice,
     todelete,
     tocreate,
+    setRetry,
+    retries,
   } = req.body;
-
   const school = await School.findOne({
     where: { ref: sch },
   });
-
   const exams = await Exam.update(
     {
       name: title,
@@ -114,8 +139,10 @@ module.exports.editQuiz = async (req, res, next) => {
       minutes: min,
       seconds: sec,
       resultDelivery: choice,
+      canRetry: setRetry,
+      retries: retries,
     },
-    { where: { id: exam } }
+    { where: { ref: exam } }
   );
   storeExamQuizzes(exam, quiz, true, todelete, tocreate);
   res.json({
@@ -130,7 +157,7 @@ module.exports.deleteAnExam = async (req, res, next) => {
     where: { ref: sch },
   });
   const destroyedExam = await Exam.destroy({
-    where: { id: exam, schoolId: school.id },
+    where: { ref: exam, schoolId: school.id },
   });
   res.json({
     code: 200,
@@ -146,10 +173,10 @@ module.exports.RegisterForExam = async (req, res, next) => {
     let quids = [];
 
     //find school
-    const school = await School.findOne({ where: { id: sch } });
+    const school = await School.findOne({ where: { ref: sch } });
     //find exam
     const exams = await Exam.findOne({
-      where: { id: exam, schoolId: school.id },
+      where: { ref: exam, schoolId: school.id },
     });
     //find person
     const student = await Person.findOne({
@@ -157,17 +184,27 @@ module.exports.RegisterForExam = async (req, res, next) => {
     });
     if (type === "custom") {
       subjects = subjects.map((sub) => parseInt(sub));
-      quizzes = await Quiz.findAll({
+      /* quizzes = await Quiz.findAll({
         where: { id: subjects },
-      });
-      questions = await Questions.findAll({
+      });*/
+      /*questions = await Questions.findAll({
         where: { quizId: subjects },
         include: Options,
-      });
+      });*/
       quids = subjects;
     } else {
-      //find question Paper
       const exampaper = await ExamPaper.findAll({
+        where: { examId: exams.id },
+        include: [Quiz],
+      });
+      quizzes = exampaper.map((paper) => {
+        return paper.quiz;
+      });
+      quids = quizzes.map((quiz) => {
+        return quiz.id;
+      });
+      //find question Paper
+      /*const exampaper = await ExamPaper.findAll({
         where: { examId: exams.id },
         include: [Quiz],
       });
@@ -180,23 +217,47 @@ module.exports.RegisterForExam = async (req, res, next) => {
       questions = await Questions.findAll({
         where: { QuizId: [quids] },
         include: Options,
-      });
+      });*/
     }
-    const sheet = await initExamQuestion(
+    /*const sheet = await initExamQuestion(
       quizzes,
       questions,
       school,
       student,
       exams,
       quids
-    );
+    );*/
+    const myexamsheet = await ExamSheet.create({
+      title: exams.name,
+      studentName: student.name,
+      quiz: quids,
+      school: school.id,
+      student: student.id,
+      schoolName: school.name,
+      totalMarks: exams.TotalMarks,
+      canRetry: exams.canRetry,
+      maxRetries: exams.retries,
+      retries: 0,
+    });
     exams.noOfStudents = exams.noOfStudents + 1;
     await exams.save();
     const score = await ExamScore.create({
       examId: exams.id,
-      examsheet: sheet._id.toString(),
+      examsheet: myexamsheet._id.toString(),
       personId: student.id,
       schoolId: school.id,
+    });
+    const notify = await SchoolNotification.create({
+      topic: "Registration alert",
+      message: `${student.name} has successfully registered for ${exams.name} examination`,
+      isNew: true,
+      time: "12:00pm",
+      schoolId: school.id,
+    });
+    io.getIO().to(sch).emit("notify", {
+      message: notify.message,
+      time: notify.time,
+      topic: notify.topic,
     });
     res.json({
       code: 200,
@@ -226,8 +287,11 @@ module.exports.getAllExamCandidates = async (req, res, next) => {
   const school = await School.findOne({
     where: { ref: sch },
   });
+  const myexam = await Exam.findOne({
+    where: { ref: exam },
+  });
   const students = await ExamScore.findAll({
-    where: { examId: exam, schoolId: school.id },
+    where: { examId: myexam.id, schoolId: school.id },
     include: Person,
   });
   res.json({
@@ -235,77 +299,14 @@ module.exports.getAllExamCandidates = async (req, res, next) => {
     students: students,
   });
 };
-module.exports.getStudentExams = async (req, res, next) => {
-  const { pid } = req.query;
-  const myexams = await ExamScore.findAll({
-    where: { PersonId: pid },
-    include: Exam,
-  });
-  res.json({
-    code: 200,
-    exams: myexams,
-  });
-};
-module.exports.loadExamQuestion = async (req, res, next) => {
-  const { sch, pid, exam } = req.query;
-  //get question paper id
-  const exams = await ExamScore.findOne({
-    where: { examId: exam, schoolId: sch, personId: pid },
-  });
-  //get question paper
-  const examsheet = await examQuestions
-    .findById(exams.examsheet)
-    .select("quizzes _id");
-  res.json({
-    code: 200,
-    quizzes: examsheet,
-  });
-};
-module.exports.submitAQuestion = async (req, res, next) => {
-  const { id, quest, quid, student, answer } = req.body;
-  const sheet = await ExamSheet.findOne({
-    $and: [{ _id: id }, { student: student }],
-  });
-  let quiz = sheet.quizzes[quid];
-  let question = quiz.questions[quest];
-  question["answer"] = answer;
-  question.answered = true;
-  // quiz.questions[quest] = question;
-  //sheet.quizzes[quid] = quiz;
-  await sheet.save();
-  res.json({
-    code: 200,
-    messsage: "answer saved!!!",
-  });
-};
-module.exports.submitExamination = async (req, res, next) => {
-  const { sheet, student, quizzes } = req.body;
-  const result = MarkExamScript(quizzes);
-  const examsheet = await ExamSheet.findOne({
-    $and: [{ _id: sheet }, { student: student }],
-  }).select("-quizzes");
-  examsheet.isComplete = true;
-  examsheet.isApproved = true;
-  examsheet.score = result.score;
-  examsheet.fails = result.fails;
-  (examsheet.totalAnswered = result.totalAnswered),
-    (examsheet.totalIgnored = result.totalIgnored);
-  await examsheet.save();
-  const scoreboard = await ExamScore.update(
-    {
-      completed: true,
-    },
-    { where: { examsheet: sheet } }
-  );
-  res.json({
-    code: 200,
-    message: "submitted successfully",
-  });
-};
 module.exports.getStudentsExamResults = async (req, res, next) => {
   const { exam } = req.query;
+  const examination = await Exam.findOne({
+    where: { ref: exam },
+    attributes: ["id"],
+  });
   const results = await ExamScore.findAll({
-    where: { examId: exam },
+    where: { examId: examination.id },
   });
   const papers = results.map((result) => result.examsheet);
   const examSheets = await examQuestions
@@ -329,12 +330,29 @@ module.exports.viewExamSolutions = async (req, res, next) => {
   });
 };
 module.exports.ApproveResult = async (req, res, next) => {
-  const { exam } = req.query;
+  const { exam, sch } = req.query;
   //update all unapproved question papers
   //get school
-  const scores = await ExamScore.findAll({
-    where: { examId: exam },
+  //get exam
+  const examination = await Exam.findOne({
+    where: { ref: exam },
+    attributes: ["name", "id"],
   });
+  const scores = await ExamScore.findAll({
+    where: { examId: examination.id },
+  });
+  //get school
+  const school = await School.findOne({
+    where: { ref: sch },
+    attributes: ["name"],
+  });
+  const people = scores.map((score) => score.personId);
+  //get students
+  let students = await Person.findAll({
+    where: { id: people },
+    attributes: ["ref", "id"],
+  });
+
   const sheets = scores.map((score) => score.examsheet);
   const updated = await examQuestions.updateMany(
     {
@@ -346,21 +364,43 @@ module.exports.ApproveResult = async (req, res, next) => {
     },
     { $set: { isApproved: true } }
   );
+
   if (updated.n > 0) {
-    /* ids.forEach(async (id) => {
-      await studentNotification.create({
-        schoolName: schoolName,
-        message: "your result has been approved!!!",
+    const notifcations = students.map((student) => {
+      return {
+        schoolName: school.name,
+        message: `your result for ${examination.name} examination has been approved!!!`,
         time: "3:44pm",
-        personId: id,
-      });
+        personId: student.id,
+        isNew: true,
+      };
     });
-    ids.forEach((id) => {
-      io.getIO().to(id).emit("notify", {
-        message: "your result has been approved!!!",
-        schoolName: schoolName,
+    const exampaper = await studentNotification.bulkCreate(notifcations, {
+      validate: true,
+    });
+    students.forEach((student) => {
+      /* await studentNotification.create({
+        schoolName: school.name,
+        message: `your result for ${examination.name} examination has been approved!!!`,
         time: "3:44pm",
-      });
+        personId: student.id,
+      });*/
+      io.getIO()
+        .to(student.ref)
+        .emit("notify", {
+          message: `your result for ${examination.name} examination has been approved!!!`,
+          schoolName: school.name,
+          time: "3:44pm",
+        });
+    });
+    /* students.forEach((student) => {
+      io.getIO()
+        .to(student.ref)
+        .emit("notify", {
+          message: `your result for ${examination.name} examination has been approved!!!`,
+          schoolName: school.name,
+          time: "3:44pm",
+        });
     });*/
   }
   //send notification
@@ -371,6 +411,10 @@ module.exports.ApproveResult = async (req, res, next) => {
 };
 module.exports.ApproveSingleResult = async (req, res, next) => {
   const { paper } = req.query;
+  const examscore = await ExamScore.findOne({
+    where: { examsheet: paper },
+    include: [School, Exam, Person],
+  });
   const sheet = await examQuestions
     .findById(paper)
     .select("student quizzes schoolName,studentName");
@@ -378,6 +422,22 @@ module.exports.ApproveSingleResult = async (req, res, next) => {
     { $and: [{ _id: paper }, { isComplete: true }] },
     { $set: { isApproved: true } }
   );
+  if (updated.n > 0) {
+    const studNotify = await studentNotification.create({
+      schoolName: examscore.school.name,
+      message: `your result for ${examscore.exam.name} examination has been approved!!!`,
+      time: "3:44pm",
+      personId: examscore.personId,
+      isNew: true,
+    });
+    io.getIO()
+      .to(examscore.person.ref)
+      .emit("notify", {
+        message: `your result for ${examscore.exam.name} examination has been approved!!!`,
+        schoolName: examscore.school.name,
+        time: "3:44pm",
+      });
+  }
   /*const studNotify = await studentNotification.create({
     schoolName: schoolName,
     message: "your result has been approved!!!",
@@ -392,26 +452,5 @@ module.exports.ApproveSingleResult = async (req, res, next) => {
   res.json({
     code: 200,
     updated: updated.n,
-  });
-};
-module.exports.getFinishedExams = async (req, res, next) => {
-  const { pid } = req.query;
-  const sheets = await ExamScore.findAll({
-    where: { personId: pid },
-  });
-  console.log(sheets);
-  const sheetids = sheets.map((sheet) => sheet.examsheet);
-  const ExamSheets = await examQuestions.find({ _id: { $in: sheetids } });
-  res.json({
-    code: 200,
-    exams: ExamSheets,
-  });
-};
-module.exports.showSolution = async (req, res, next) => {
-  const { sheet } = req.query;
-  const examsheet = await examQuestions.findById(sheet).select("quizzes _id");
-  res.json({
-    quizzes: examsheet,
-    code: 200,
   });
 };

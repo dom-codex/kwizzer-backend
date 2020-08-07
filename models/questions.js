@@ -10,5 +10,6 @@ const Question = sequelize.define("question", {
   },
   question: Sequelize.STRING,
   questionUrl: Sequelize.STRING,
+  ref: Sequelize.STRING,
 });
 module.exports = Question;

@@ -12,21 +12,11 @@ const Quiz = sequelize.define("quiz", {
     type: Sequelize.STRING,
     allowNull: false,
   },
-  choice: Sequelize.STRING,
+  ref: Sequelize.STRING,
   published: Sequelize.BOOLEAN,
-  canReTake: Sequelize.BOOLEAN,
-  mode: Sequelize.STRING,
   totalMarks: Sequelize.INTEGER,
   totalQuestions: { type: Sequelize.INTEGER, default: 0 },
-  retries: { type: Sequelize.INTEGER, default: 0 },
   marks: Sequelize.DOUBLE,
-  hours: Sequelize.INTEGER,
-  minutes: Sequelize.INTEGER,
-  seconds: Sequelize.INTEGER,
   nQuestions: Sequelize.INTEGER,
-  NumberOfSubmitted: {
-    type: Sequelize.INTEGER,
-    default: 0,
-  },
 });
 module.exports = Quiz;

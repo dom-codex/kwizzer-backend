@@ -35,6 +35,10 @@ const ExamQuestionSchema = new schema({
     type: schema.Types.Number,
     default: 0,
   },
+  retries: schema.Types.Number,
+  maxRetries: schema.Types.Number,
+  canRetry: schema.Types.Boolean,
+
   quizzes: [
     {
       title: schema.Types.String,

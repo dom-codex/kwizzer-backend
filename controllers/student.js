@@ -1,22 +1,192 @@
-const Classroom = require("../models/classrooms");
-const Quiz = require("../models/quiz");
-const Question = require("../models/questions");
-const Option = require("../models/options");
-const classBlock = require("../models/class");
-const scores = require("../models/scoreBoad");
-const Hall = require("../models/hall");
+//const Classroom = require("../models/classrooms");
+//const Quiz = require("../models/quiz");
+//const Question = require("../models/questions");
+//const Option = require("../models/options");
+//const classBlock = require("../models/class");
+//const scores = require("../models/scoreBoad");
+//const Hall = require("../models/hall");
 const studentNotification = require("../models/studentNotification");
+const ExamSheet = require("../models/examQuestions");
+const examQuestions = require("../models/examQuestions");
+const ExamScore = require("../models/examScore");
+const Exam = require("../models/exam");
+const ExamPaper = require("../models/examPaper");
+const Options = require("../models/options");
 //model imports
-const { mark } = require("../helpers/markQuiz");
+//const { mark } = require("../helpers/markQuiz");
+const { initExamQuestion } = require("../helpers/initExamQuestions");
+const { MarkExamScript } = require("../helpers/markExamination");
 //helper function import
-const fetch = require("node-fetch");
-const studentQuestion = require("../models/studentQuestion");
+//const fetch = require("node-fetch");
+//const studentQuestion = require("../models/studentQuestion");
 const Person = require("../models/person");
 const School = require("../models/school");
-const { genRandomNumbers } = require("../helpers/genRandom");
+//const { genRandomNumbers } = require("../helpers/genRandom");
 const adminNotifications = require("../models/schoolNotification");
 const io = require("../socket");
-module.exports.regForQuiz = async (req, res, next) => {
+const Quiz = require("../models/quiz");
+const Question = require("../models/questions");
+const SchoolNotification = require("../models/schoolNotification");
+module.exports.getNotifications = async (req, res, next) => {
+  const { student } = req.query;
+  const person = await Person.findOne({
+    where: { ref: student },
+  });
+  const notifications = await studentNotification.findAll({
+    where: { personId: person.id },
+  });
+  res.json({
+    code: 200,
+    notifications: notifications,
+  });
+};
+module.exports.loadExamQuestion = async (req, res, next) => {
+  const { sheet, pid, exam } = req.query;
+  //get question paper id
+  const exams = await ExamScore.findOne({
+    where: { examsheet: sheet },
+    include: Exam,
+  });
+  ///const school = await School.findByPk(exams.schoolId);
+  //find exam
+  //find person
+  //const student = await Person.findOne(exams.personId);
+  //get question paper
+  const examsheet = await examQuestions
+    .findById(sheet)
+    .select("quizzes quiz _id");
+  //find quizzes
+  const quizzes = await Quiz.findAll({
+    where: { id: examsheet.quiz },
+  });
+  const questions = await Question.findAll({
+    where: { quizId: examsheet.quiz },
+    include: Options,
+  });
+  //find exams
+  //const studentsExam = await Exam.findAll({
+  //  where: examsheet.quiz,
+  // });
+  const studentQuestion = initExamQuestion(quizzes, questions);
+  examsheet.quizzes = studentQuestion;
+  await examsheet.save();
+
+  res.json({
+    code: 200,
+    quizzes: { quizzes: studentQuestion, _id: examsheet._id },
+  });
+};
+module.exports.submitAQuestion = async (req, res, next) => {
+  const { id, quest, quid, student, answer } = req.body;
+
+  const sheet = await ExamSheet.findOne({
+    $and: [{ _id: id }],
+  });
+  let quiz = sheet.quizzes[quid];
+  let question = quiz.questions[quest];
+  question["answer"] = answer;
+  question.answered = true;
+  // quiz.questions[quest] = question;
+  //sheet.quizzes[quid] = quiz;
+  await sheet.save();
+  res.json({
+    code: 200,
+    messsage: "answer saved!!!",
+  });
+};
+module.exports.submitExamination = async (req, res, next) => {
+  const { sheet, student, quizzes } = req.body;
+  //GET EXAM AND CHECK RESULT DELIVERY CHOICE
+  const result = MarkExamScript(quizzes);
+  const examScore = await ExamScore.findOne({
+    where: { examsheet: sheet },
+    include: [Exam, Person, School],
+  });
+  const resultDelivery = examScore.exam.resultDelivery;
+  const isManual = resultDelivery === "manual";
+  const examsheet = await ExamSheet.findOne({
+    $and: [{ _id: sheet }],
+  }).select("-quizzes");
+  examsheet.isComplete = true;
+  examsheet.isApproved = isManual ? false : true;
+  examsheet.score = result.score;
+  examsheet.fails = result.fails;
+  (examsheet.totalAnswered = result.totalAnswered),
+    (examsheet.totalIgnored = result.totalIgnored);
+  await examsheet.save();
+  const scoreboard = await ExamScore.update(
+    {
+      completed: true,
+    },
+    { where: { examsheet: sheet } }
+  );
+  const notify = await SchoolNotification.create({
+    schoolId: examScore.schoolId,
+    topic: "Result submition",
+    time: "12:00pm",
+    message: `${examScore.person.name} has submitted his ${examScore.exam.name} exam sheet`,
+    isNew: true,
+  });
+  io.getIO().to(examScore.school.ref).emit("notify", {
+    message: notify.message,
+    topic: notify.topic,
+    time: notify.time,
+  });
+  res.json({
+    code: 200,
+    message: "submitted successfully",
+  });
+};
+module.exports.getStudentExams = async (req, res, next) => {
+  const { pid } = req.query;
+
+  const person = await Person.findOne({
+    where: { ref: pid },
+  });
+  const myexams = await ExamScore.findAll({
+    where: { PersonId: person.id },
+    attributes: { exclude: ["personId", "schoolId", "examId", "id", "score"] },
+    include: Exam,
+  });
+  res.json({
+    code: 200,
+    exams: myexams,
+  });
+};
+
+module.exports.getFinishedExams = async (req, res, next) => {
+  const { pid } = req.query;
+  const person = await Person.findOne({
+    where: { ref: pid },
+  });
+  const sheets = await ExamScore.findAll({
+    where: { personId: person.id },
+  });
+  const sheetids = sheets.map((sheet) => sheet.examsheet);
+  const ExamSheets = await examQuestions
+    .find({
+      $and: [
+        { _id: { $in: sheetids } },
+        { isApproved: true },
+        { isComplete: true },
+      ],
+    })
+    .select("-quizzes");
+  res.json({
+    code: 200,
+    exams: ExamSheets,
+  });
+};
+module.exports.showSolution = async (req, res, next) => {
+  const { sheet } = req.query;
+  const examsheet = await examQuestions.findById(sheet).select("quizzes _id");
+  res.json({
+    quizzes: examsheet,
+    code: 200,
+  });
+};
+
+/*module.exports.regForQuiz = async (req, res, next) => {
   const { sid, quid } = req.query;
   const { email } = req.body;
   //find user
@@ -45,7 +215,7 @@ module.exports.regForQuiz = async (req, res, next) => {
       time: "5:01am",
     });
   res.json({ code: 201 });
-};
+};*
 module.exports.getAppliedQuiz = async (req, res, next) => {
   const { pid } = req.query;
   const quizzes = await Hall.findAll({
@@ -60,9 +230,9 @@ module.exports.getAppliedQuiz = async (req, res, next) => {
     quizzes: newQuizzes,
   });
 };
-
-module.exports.takeQuiz = async (req, res, next) => {
-  /*retrieve students info */
+*/
+/*module.exports.takeQuiz = async (req, res, next) => {
+  /*retrieve students info 
   try {
     const { sch, pid, quiz, retry } = req.query;
 
@@ -80,8 +250,8 @@ module.exports.takeQuiz = async (req, res, next) => {
         message: "you not allowed to take this quiz",
       });
     }*/
-    //get questions with the related quiz id
-    /* const quiz = await Quiz.findByPk(quid);*/
+//get questions with the related quiz id
+/* const quiz = await Quiz.findByPk(quid);
     //find quiz
     const person = await Person.findOne({
       where: { id: pid },
@@ -120,7 +290,7 @@ module.exports.takeQuiz = async (req, res, next) => {
       });
     }
     /*store selected questions in mongodb collection
-     */
+     
     const resp = await fetch(
       `http://127.0.0.1:3500/school/student/mongo?retry=${retry}`,
       {
@@ -139,7 +309,7 @@ module.exports.takeQuiz = async (req, res, next) => {
     );
     const data = await resp.json();
     /* if code is 201 means a new document was created in the mongod
-    db collection, update the sql db with the document id */
+    db collection, update the sql db with the document id 
     if (data.code === 403) {
       return res.json({
         code: 403,
@@ -164,8 +334,8 @@ module.exports.takeQuiz = async (req, res, next) => {
   } catch (err) {
     console.log(err.message);
   }
-};
-module.exports.submitAQuestion = async (req, res, next) => {
+};*/
+/*module.exports.submitAQuestion = async (req, res, next) => {
   try {
     //retrieve quest index and question id  on mongo and answer
     const { index, id, ans } = req.body;
@@ -298,14 +468,4 @@ module.exports.ViewSolution = async (req, res, next) => {
     questions: questionPaper,
     code: 200,
   });
-};
-module.exports.getNotifications = async (req, res, next) => {
-  const { student } = req.query;
-  const notifications = await studentNotification.findAll({
-    where: { personId: student },
-  });
-  res.json({
-    code: 200,
-    notifications: notifications,
-  });
-};
+};*/

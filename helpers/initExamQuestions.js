@@ -1,14 +1,7 @@
 const ExamSheet = require("../models/examQuestions");
 const { genRandomNumbers } = require("../helpers/genRandom");
 
-module.exports.initExamQuestion = (
-  quizzes,
-  questions,
-  school,
-  person,
-  exam,
-  quids
-) => {
+module.exports.initExamQuestion = (quizzes, questions) => {
   const studentQuestions = [];
   for (let i = 0; i < quizzes.length; i++) {
     const quiz = quizzes[i];
@@ -41,7 +34,8 @@ module.exports.initExamQuestion = (
       questions: questionsToAnswer,
     });
   }
-  return ExamSheet.create({
+  return studentQuestions;
+  /* return ExamSheet.create({
     title: exam.name,
     studentName: person.name,
     quiz: quids,
@@ -50,5 +44,5 @@ module.exports.initExamQuestion = (
     schoolName: school.name,
     totalMarks: exam.TotalMarks,
     quizzes: studentQuestions,
-  });
+  });*/
 };
