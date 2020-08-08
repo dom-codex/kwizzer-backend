@@ -18,18 +18,26 @@ const formatQuizAndQuestion = require("../helpers/fomatQuizOutput").formatQuiz;
 const formatOptions = require("../helpers/formatOptions").formatOptions;
 const io = require("../socket");
 const { validateNewQuizData } = require("../helpers/newQuizValidator");
+const { validationResult } = require("express-validator");
+const { HandleUserError } = require("../helpers/errorHandler");
 //custom imports
 module.exports.createSchool = async (req, res, next) => {
   //retrieve details from form body
   const { owner, name, email, password } = req.body;
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const input = HandleUserError(req.body, errors, req);
+    return res.json({
+      code: 403,
+      data: input,
+    });
+  }
   const hashedPasword = await bcrypt.hash(password, 12);
-  const schowner = await Person.findOne({ where: { ref: owner } });
   crypto.randomBytes(20, async (err, buffer) => {
     const ref = buffer.toString("hex");
-    const school = await schowner.createSchool({
+    const school = await School.create({
       name: name,
       ref: ref,
-      description: "a school",
       email: email,
       password: hashedPasword,
     });
@@ -47,21 +55,25 @@ module.exports.loginSchool = async (req, res, next) => {
   const { email, password } = req.body;
   //find school with associated email
   try {
-    const sch = await School.findAll({ where: { email: email } });
-    const isPassword = await bcrypt.compare(password, sch[0].password);
-    if (!isPassword) {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
       return res.json({
-        code: 400,
-        message: "access denied",
+        code: 403,
+        email: email,
+        message: "invalid email or password",
       });
     }
+    const sch = await School.findOne({
+      where: { email: email },
+      attributes: { exclude: ["id", "createdAt", "updatedAt", "password"] },
+    });
     return res.json({
-      school: sch[0],
+      school: sch,
       code: 200,
       message: "authenticated!!!",
     });
   } catch (err) {
-    console.log("error occured");
+    console.log(err);
   }
 };
 module.exports.setQuiz = async (req, res, next) => {

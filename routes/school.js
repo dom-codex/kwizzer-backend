@@ -1,13 +1,16 @@
 const express = require("express");
 const router = express.Router();
-
+const {
+  validateNewSchoolInfo,
+  validateSchoolLoginInfo,
+} = require("../validators/route-data-validate");
 const schoolControllers = require("../controllers/school");
 const studentControllers = require("../controllers/student");
 const examControllers = require("../controllers/exam");
 
 /** route for School signup */
-router.post("/create", schoolControllers.createSchool);
-router.post("/login", schoolControllers.loginSchool);
+router.post("/create", validateNewSchoolInfo, schoolControllers.createSchool);
+router.post("/login", validateSchoolLoginInfo, schoolControllers.loginSchool);
 //router.post("/class/create", schoolControllers.createClassBlock);
 //router.post("/class/add/teacher", schoolControllers.addTeacher);
 //tutor specific route
