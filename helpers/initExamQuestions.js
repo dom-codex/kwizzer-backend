@@ -3,6 +3,7 @@ const { genRandomNumbers } = require("../helpers/genRandom");
 
 module.exports.initExamQuestion = (quizzes, questions) => {
   const studentQuestions = [];
+  let random = [];
   for (let i = 0; i < quizzes.length; i++) {
     const quiz = quizzes[i];
     const toAnswer = quiz.nQuestions;
@@ -12,7 +13,7 @@ module.exports.initExamQuestion = (quizzes, questions) => {
     );
     for (let i = 0; i < toAnswer; i++) {
       //generate random number
-      const n = genRandomNumbers([], myQuestions.length);
+      const n = genRandomNumbers(random, myQuestions.length);
       const question = myQuestions[n - 1];
       questionsToAnswer.push({
         question: question.question,
@@ -34,6 +35,7 @@ module.exports.initExamQuestion = (quizzes, questions) => {
       questions: questionsToAnswer,
     });
   }
+  random = [];
   return studentQuestions;
   /* return ExamSheet.create({
     title: exam.name,

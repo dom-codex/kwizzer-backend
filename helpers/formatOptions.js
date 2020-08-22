@@ -1,18 +1,25 @@
-module.exports.formatOptions = (options, answer) => {
+module.exports.formatOptions = (options, answer, id, isNew) => {
+  let answerCount = 0;
   let reformedOptions = [];
-  console.log("wher");
-  Object.keys(options).forEach((key) => {
-    if (key === answer) {
+  //Object.keys(options)
+  if (!isNew) {
+    options = options.filter((option) => option.id !== 0);
+  }
+  options.forEach((option) => {
+    if (option.value === answer) {
       reformedOptions.push({
-        option: options[key],
+        option: option.value,
         isAnswer: true,
+        questionId: id,
       });
+      answerCount++;
     } else {
       reformedOptions.push({
-        option: options[key],
+        option: option.value,
         isAnswer: false,
+        questionId: id,
       });
     }
   });
-  return reformedOptions;
+  return { options: reformedOptions, n: answerCount };
 };

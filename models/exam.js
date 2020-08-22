@@ -22,6 +22,8 @@ const Exam = sequelize.define("exam", {
   resultDelivery: Sequelize.STRING,
   noOfStudents: { type: Sequelize.INTEGER, default: 0 },
   canRetry: { type: Sequelize.BOOLEAN, default: false },
+  canReg: { type: Sequelize.BOOLEAN, default: false },
+  canStart: { type: Sequelize.BOOLEAN, default: false },
   retries: { type: Sequelize.INTEGER, default: 0 },
 });
 module.exports = Exam;

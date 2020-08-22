@@ -110,6 +110,18 @@ sequelize
         const roomNo = socket.handshake.query.ref;
         socket.join(roomNo);
         console.log("client connected");
+        socket.on("studreceived", async (data) => {
+          await studNotification.update(
+            { isNew: false },
+            { where: { id: data } }
+          );
+        });
+        socket.on("adminreceived", async (data) => {
+          await schNotification.update(
+            { isNew: false },
+            { where: { id: data } }
+          );
+        });
       });
       console.log("connected");
     });

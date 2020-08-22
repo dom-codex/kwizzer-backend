@@ -1,20 +1,18 @@
+const crypto = require("crypto");
+const moment = require("moment");
 const bcrypt = require("bcryptjs");
 const School = require("../models/school");
 const Person = require("../models/person");
-const Teacher = require("../models/teacher");
-const Classblock = require("../models/class");
 const Classroom = require("../models/classrooms");
 const Quiz = require("../models/quiz");
 const Question = require("../models/questions");
 const Options = require("../models/options");
-const Scores = require("../models/scoreBoad");
-const studentNotification = require("../models/studentNotification");
 const adminNotifications = require("../models/schoolNotification");
-//model imports
-const crypto = require("crypto");
 const Hall = require("../models/hall");
-const studentQuestion = require("../models/studentQuestion");
-const formatQuizAndQuestion = require("../helpers/fomatQuizOutput").formatQuiz;
+const SchoolNotification = require("../models/schoolNotification");
+const Exam = require("../models/exam");
+const ExamScore = require("../models/examScore");
+//model imports
 const formatOptions = require("../helpers/formatOptions").formatOptions;
 const io = require("../socket");
 const { validateNewQuizData } = require("../helpers/newQuizValidator");
@@ -65,10 +63,10 @@ module.exports.loginSchool = async (req, res, next) => {
     }
     const sch = await School.findOne({
       where: { email: email },
-      attributes: { exclude: ["id", "createdAt", "updatedAt", "password"] },
+      attributes: ["ref"],
     });
     return res.json({
-      school: sch,
+      school: sch.ref,
       code: 200,
       message: "authenticated!!!",
     });
@@ -95,6 +93,12 @@ module.exports.setQuiz = async (req, res, next) => {
       });
     }
     const sch = await School.findOne({ where: { ref: school } });
+    if (!school) {
+      return res.json({
+        code: 403,
+        message: "school not found!!!",
+      });
+    }
     crypto.randomBytes(20, async (err, buffer) => {
       const token = buffer.toString("hex");
       const quiz = await Quiz.create({
@@ -111,7 +115,12 @@ module.exports.setQuiz = async (req, res, next) => {
       code: 200,
       message: "quiz created successfully!!!",
     });
-  } catch (err) {}
+  } catch (err) {
+    res.json({
+      code: 400,
+      message: "oops!!! an error occurred,try again",
+    });
+  }
 };
 module.exports.getSingleQuiz = async (req, res, next) => {
   const { quid } = req.query;
@@ -124,23 +133,37 @@ module.exports.getSingleQuiz = async (req, res, next) => {
   });
 };
 module.exports.retrieveQuizzes = async (req, res, next) => {
-  const { sid } = req.query;
-  if (!sid)
-    return res.json({
-      code: 401,
-      message: "classblock does not exist",
+  try {
+    const { sid } = req.query;
+    if (!sid)
+      return res.json({
+        code: 401,
+        message: "classblock does not exist",
+      });
+    //find school
+    const sch = await School.findOne({
+      where: { ref: sid },
+      attributes: ["id"],
     });
-  //find school
-  const sch = await School.findOne({ where: { ref: sid }, attributes: ["id"] });
-  //retrieve all quiz associated with school
-  const quizzes = await Quiz.findAll({
-    where: { schoolId: sch.id },
-    // include: Person,
-  });
-  res.json({
-    code: 200,
-    quizzes: quizzes,
-  });
+    //retrieve all quiz associated with school
+    const quizzes = await Quiz.findAll({
+      where: { schoolId: sch.id },
+      // include: Person,
+    });
+    if (!quizzes) {
+      return res.json({
+        code: 403,
+        quizzes: [],
+        message: "you haven't published a quiz!!!",
+      });
+    }
+    res.json({
+      code: 200,
+      quizzes: quizzes,
+    });
+  } catch (err) {
+    console.log(err.message);
+  }
 };
 module.exports.editQuiz = async (req, res, next) => {
   const { quizid } = req.query;
@@ -151,43 +174,18 @@ module.exports.editQuiz = async (req, res, next) => {
     },
     where: { ref: quizid },
   });
+  if (!quiz) {
+    return res.json({ code: 403, message: " Quiz not found!!!" });
+  }
   quiz.title = name;
   quiz.marks = mark;
   (quiz.totalMarks = total), (quiz.nQuestions = nQuestions);
   await quiz.save();
   res.json({
     code: 201,
+    message: "Saved!!!",
   });
 };
-/*module.exports.retrieveAllClassQuiz = async (req, res, next) => {
-  //retrieve classblock id from query param
-  const { sid } = req.query;
-  if (!sid)
-    return res.json({
-      code: 401,
-      message: "classblock does not exist",
-    });
-  //retrieve all quiz associated with school
-  const quizzes = await Quiz.findAll({
-    where: { schoolId: schId },
-    include: Person,
-  });
-  const questions = await Question.findAll({
-    where: { quizId: 1 },
-    include: [Quiz, Options],
-  });
-  if (!quizzes.length)
-    return res.json({
-      code: 401,
-      message: "no quiz was found",
-    });
-  //format ouput to include both quiz and its associated question
-  const formattedQuiz = formatQuizAndQuestion(quizzes, questions);
-  res.json({
-    code: 200,
-    quizzes: formattedQuiz,
-  });
-};*/
 module.exports.getAllQuizQuestions = async (req, res, next) => {
   const { quid } = req.query;
   //get quiz
@@ -218,38 +216,27 @@ module.exports.deleteQuiz = async (req, res, next) => {
   const sch = await School.findOne({
     where: { ref: sid },
   });
+  if (!sch) {
+    return res.json({
+      code: 403,
+      message: "school not found",
+    });
+  }
   const quiz = await Quiz.findOne({
-    where: { id: quid },
-    include: School,
+    where: { ref: quid },
   });
-  const registeredStudents = await Hall.findAll({ where: { quizId: quid } });
-  const students = registeredStudents.map((stud) => {
-    return stud.personId;
-  });
+  if (!quiz) {
+    return res.json({
+      code: 403,
+      message: "quiz not found",
+    });
+  }
   const destroyedQuiz = await Quiz.destroy({
     where: {
       schoolId: sch.id,
-      id: quid,
+      ref: quid,
     },
   });
-  //check info returned after deletion later
-  /*students.forEach(async (stud) => {
-    await studentNotification.create({
-      message: `${quiz.title} has been deleted thus you can no longer take this quiz and it wont't appear in your list of quiz`,
-      personId: stud,
-      schoolName: quiz.school.name,
-      time: "12:00pm",
-    });
-  });
-  students.forEach((uid) => {
-    io.getIO()
-      .to(uid)
-      .emit("notify", {
-        message: `${quiz.title} has been deleted thus you can no longer take this quiz and it wont't appear in your list of quiz`,
-        schoolName: quiz.school.name,
-        time: "12:00pm",
-      });
-  });*/
   return res.json({
     code: 201,
     message: "quiz successfully deleted!!!",
@@ -260,25 +247,44 @@ module.exports.setQuestion = async (req, res, next) => {
     //retrive quiz id from request body
     //options should be an array of option object with an is answer field set
     const { quid } = req.query;
-    const { question, options, answer } = req.body;
+    const { question, answer, opts } = req.body;
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.json({
+        code: 403,
+        message: "Question was not created,try again!!!",
+      });
+    }
     //retrive quiz
     const quiz = await Quiz.findOne({
       where: { ref: quid },
       attributes: ["id", "totalQuestions"],
     });
+    if (!quiz) {
+      return res.json({
+        code: 403,
+        message: "Quiz not found!!!,try again",
+      });
+    }
     const test = await Question.create({
       question: question,
       questionUrl: "",
       quizId: quiz.id,
     });
-    const myoptions = formatOptions(options, answer);
+    const myoptions = formatOptions(opts, answer, test.id, true);
     //loop through the options
-    myoptions.forEach(async (option) => {
-      await test.createOption({
-        isAnswer: option.isAnswer,
-        option: option.option,
+    if (myoptions.n > 1) {
+      res.json({
+        code: 403,
+        message: "answer must be unique!!!",
       });
-    });
+    } else if (myoptions.n <= 0) {
+      res.json({
+        code: 403,
+        message: "please select an answer!!!",
+      });
+    }
+    await Options.bulkCreate(myoptions.options, { validate: true });
     quiz.totalQuestions = quiz.totalQuestions + 1;
     await quiz.save();
     res.json({
@@ -305,29 +311,61 @@ module.exports.getSingleQuestion = async (req, res, next) => {
 module.exports.updateQuestion = async (req, res, next) => {
   //retrieve question id from the request body
   const { quid, quiz } = req.query;
-  const { question, options, answer } = req.body;
+  const { question, opts, answer, existing, todelete } = req.body;
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.json({
+      code: 403,
+      message: "Failed!!!",
+    });
+  }
   const myQuiz = await Quiz.findOne({
     where: { ref: quiz },
     attributes: ["id"],
   });
-  const questions = await Question.findOne(
-    {
-      where: { id: quid, quizId: myQuiz.id },
-    },
-    { include: Options }
-  );
+  const questions = await Question.findOne({
+    where: { id: quid, quizId: myQuiz.id },
+  });
   if (!questions)
     return res.json({
       code: 401,
       message: "no question found",
     });
-  const myoptions = formatOptions(options, answer);
+  let tocreate = opts.map((option) => {
+    if (option.id == 0) {
+      return {
+        option: option.value,
+        questionId: quid,
+        isAnswer: option.value === answer ? true : false,
+      };
+    } else return;
+  });
+  tocreate = tocreate.filter((tc) => tc);
+  await Options.destroy({ where: { id: todelete } });
+  if (tocreate.length) {
+    await Options.bulkCreate(tocreate, { validate: true });
+  }
+  const myoptions = formatOptions(opts, answer, questions.id, true);
+  if (myoptions.n > 1) {
+    res.json({
+      code: 403,
+      message: "answer must be unique!!!",
+    });
+  } else if (myoptions.n <= 0) {
+    res.json({
+      code: 403,
+      message: "please select an answer!!!",
+    });
+  }
+
   questions.question = question;
   await questions.save();
-  const opts = await Options.findAll({ where: { questionId: quid } });
-  opts.forEach(async (o, i) => {
-    o.option = myoptions[i].option;
-    o.isAnswer = myoptions[i].isAnswer;
+  const editedopts = await Options.findAll({
+    where: { questionId: quid },
+  });
+  editedopts.forEach(async (o, i) => {
+    o.option = myoptions.options[i].option;
+    o.isAnswer = myoptions.options[i].isAnswer;
     await o.save();
   });
   res.json({
@@ -339,14 +377,25 @@ module.exports.publishQuiz = async (req, res, next) => {
   //find quiz
   let quiz = await Quiz.findOne({
     where: { ref: ref },
-    attributes: ["id", "published", "schoolId"],
     // include: School,
   });
   //perform some checks to ensure minimum no of questions is set
+  if (!quiz) {
+    return res.json({
+      code: 400,
+      message: "Quiz not found!!!",
+    });
+  }
   if (quiz.totalQuestions < quiz.nQuestions) {
     return res.json({
       code: 400,
       message: "total no of questions too small",
+    });
+  }
+  if (quiz.published) {
+    return res.json({
+      code: 400,
+      message: "Already published!!!",
     });
   }
   quiz.published = true;
@@ -356,31 +405,6 @@ module.exports.publishQuiz = async (req, res, next) => {
     quizId: quiz.id,
     schoolId: quiz.schoolId,
   });
-  //get all registered candidates
-  /* const hallStudents = await Hall.findAll({
-    where: { quizId: id },
-  });
-  //get ids
-  const ids = hallStudents.map((stud) => {
-    return stud.personId;
-  });
-  ids.forEach(async (uid) => {
-    await studentNotification.create({
-      schoolName: quiz.school.name,
-      message: `${quiz.title} quiz has been successfully published, head over to the quiz section to take this quiz !!!`,
-      time: "3:45pm",
-      personId: uid,
-    });
-  });
-  ids.forEach((uid) => {
-    io.getIO()
-      .to(uid)
-      .emit("notify", {
-        message: `${quiz.title} quiz has been successfully published, head over to the quiz section to take this quiz !!!`,
-        schoolName: quiz.school.name,
-        time: "3:45pm",
-      });
-  });*/
   res.json({
     code: 201,
     message: "published successfully!!!",
@@ -435,137 +459,19 @@ module.exports.listOnlyPublishedQuiz = async (req, res, next) => {
     published: published,
   });
 };
-/*module.exports.listRegisteredCandidates = async (req, res, next) => {
-  try {
-    const { sch, quiz } = req.query;
-    const hallstud = await Hall.findAll({
-      where: { quizId: quiz, schoolId: sch },
-      include: Person,
-    });
-    if (!hallstud.length) {
-      return res.json({
-        code: 400,
-        message: "No student has registered",
-      });
-    }
-    res.json({
-      hall: hallstud,
-    });
-  } catch (err) {
-    console.log(err.message);
-  }
-};
-module.exports.ApproveResult = async (req, res, next) => {
-  const { quiz } = req.query;
-  //update all unapproved question papers
-  //get school
-  const quizz = await Quiz.findOne({
-    where: { id: quiz },
-    include: School,
-  });
-  const schoolName = quizz.school.name;
-  const papers = await studentQuestion
-    .find({
-      $and: [{ quiz: quiz }, { isComplete: true }, { isApproved: false }],
-    })
-    .select("student");
-  //get ids
-  const ids = papers.map((paper) => {
-    return paper.student;
-  });
-  const updated = await studentQuestion.updateMany(
-    { $and: [{ quiz: quiz }, { isComplete: true }] },
-    { $set: { isApproved: true } }
-  );
-  if (updated.n > 0) {
-    ids.forEach(async (id) => {
-      await studentNotification.create({
-        schoolName: schoolName,
-        message: "your result has been approved!!!",
-        time: "3:44pm",
-        personId: id,
-      });
-    });
-    ids.forEach((id) => {
-      io.getIO().to(id).emit("notify", {
-        message: "your result has been approved!!!",
-        schoolName: schoolName,
-        time: "3:44pm",
-      });
-    });
-  }
-  //send notification
-  res.json({
-    code: 200,
-    updated: updated.n,
-  });
-};
-module.exports.ApproveSingleResult = async (req, res, next) => {
-  const { paper } = req.query;
-  const studentInfo = await studentQuestion
-    .findById(paper)
-    .select("student quiz");
-  const quiz = await Quiz.findOne({
-    where: { id: studentInfo.quiz },
-    include: School,
-  });
-  const schoolName = quiz.school.name;
-  const updated = await studentQuestion.updateOne(
-    { $and: [{ _id: paper }, { isComplete: true }] },
-    { $set: { isApproved: true } }
-  );
-  const studNotify = await studentNotification.create({
-    schoolName: schoolName,
-    message: "your result has been approved!!!",
-    time: "3:44pm",
-    personId: studentInfo.student,
-  });
-  io.getIO().to(studentInfo.student).emit("notify", {
-    message: "your result has been approved!!!",
-    schoolName: schoolName,
-    time: "3:44pm",
-  });
-  res.json({
-    code: 200,
-    updated: updated.n,
-  });
-};
-module.exports.viewStudentResult = async (req, res, next) => {
-  const { quiz } = req.query;
-  const scores = await Scores.findAll({
-    where: { quizId: quiz },
-    include: Person,
-  });
-  //retrieve questionpaper ids
-  const ids = scores.map((score) => {
-    return score.questId;
-  });
-  //get question paper from mongo db
-  const questionPapers = await studentQuestion
-    .find({ _id: { $in: ids } })
-    .select("-questions")
-    .sort({ score: -1 });
-  /*const studentsResult = [];
-  questionPapers.forEach((q) => {
-    const student = scores.find(
-      (score) => score.questId.toString() === q._id.toString()
-    );
-    studentsResult.push({
-      name: student.person.name,
-      ...q._doc,
-    });
-  });
-  res.json({
-    code: 200,
-    result: questionPapers,
-  });
-};*/
 module.exports.adminNotifications = async (req, res, next) => {
   const { sch } = req.query;
   //get school
   const school = await School.findOne({
     where: { ref: sch },
   });
+  await adminNotifications.update(
+    {
+      isNew: false,
+    },
+    { where: { schoolId: school.id } }
+  );
+  io.getIO().to(sch).emit("clear");
   //get adminNotifications
   const notifications = await adminNotifications.findAll({
     where: { schoolId: school.id },
@@ -574,5 +480,44 @@ module.exports.adminNotifications = async (req, res, next) => {
   res.json({
     code: 200,
     notifications: notifications,
+  });
+};
+module.exports.getNewNotifications = async (req, res, next) => {
+  const { sref } = req.query;
+  //find person
+  const school = await School.findOne({
+    where: { ref: sref },
+    attributes: ["id"],
+  });
+  if (!school) {
+    return res.json({
+      code: 403,
+      notifications: 0,
+    });
+  }
+  //get notifications
+  const notifications = await SchoolNotification.count({
+    where: { schoolId: school.id, isNew: true },
+  });
+  res.json({
+    code: 200,
+    notifications: notifications,
+  });
+};
+module.exports.fetchStatistics = async (req, res, next) => {
+  const { sch } = req.query;
+  const school = await School.findOne({
+    where: { ref: sch },
+    attributes: ["id"],
+  });
+  const exams = await Exam.count({ where: { schoolId: school.id } });
+  const quizzes = await Quiz.count({ where: { schoolId: school.id } });
+  const candidates = await ExamScore.count({ where: { schoolId: school.id } });
+  res.json({
+    statistics: {
+      exams: exams ? exams : 0,
+      quizzes: quizzes ? quizzes : 0,
+      candidates: candidates ? candidates : 0,
+    },
   });
 };
