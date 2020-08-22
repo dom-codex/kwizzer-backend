@@ -103,7 +103,7 @@ examscore.belongsTo(school, { constraints: true, onDelete: "CASCADE" });
 sequelize
   .sync()
   .then((_) => {
-    mongoose.connect("mongodb://127.0.0.1:27017/learned").then((_) => {
+    mongoose.connect(process.env.mongo).then((_) => {
       server.listen(3500);
       const io = require("./socket").init(server); //socket server initialization
       io.on("connect", (socket) => {

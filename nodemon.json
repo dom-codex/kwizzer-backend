@@ -1,5 +1,10 @@
 {
-    "env":{
-        "mysqlPassword":"compressor"
+    "env": {
+        "mysqlPassword": "compressor",
+        "dbName": "learned",
+        "host": "localhost",
+        "port": 5432,
+        "user": "postgres",
+        "mongo": "mongodb://127.0.0.1:27017/learned"
     }
 }
