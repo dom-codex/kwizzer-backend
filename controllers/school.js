@@ -80,7 +80,7 @@ module.exports.setQuiz = async (req, res, next) => {
     const {
       title,
       markPerQuestion,
-      noOfQuestionForStud,
+      noOfQuestionforStud,
       totalMarks,
       school,
     } = req.body;
@@ -106,7 +106,7 @@ module.exports.setQuiz = async (req, res, next) => {
         schoolId: sch.id,
         marks: markPerQuestion,
         totalMarks: totalMarks,
-        nQuestions: noOfQuestionForStud,
+        nQuestions: noOfQuestionforStud,
         ref: token,
         published: false,
       });

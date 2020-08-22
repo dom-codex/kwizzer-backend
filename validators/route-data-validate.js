@@ -7,7 +7,7 @@ const bcrypt = require("bcryptjs");
 const Exam = require("../models/exam");
 module.exports.validateNewUserInfo = [
   check("name")
-    .isLength({ min: 300 })
+    .isLength({ min: 3 })
     .withMessage("name too short")
     .isLength({ max: 25 })
     .trim(),

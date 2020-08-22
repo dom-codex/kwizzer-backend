@@ -250,8 +250,6 @@ module.exports.RegisterForExam = async (req, res, next) => {
     let quids = [];
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log(errors);
-
       return res.json({
         code: 403,
         message: errors.errors[0].msg,
@@ -326,7 +324,7 @@ module.exports.RegisterForExam = async (req, res, next) => {
     });
     res.json({
       code: 200,
-      message: "exam questions intialized",
+      message: "successfully registered",
     });
   } catch (err) {
     console.log(err);

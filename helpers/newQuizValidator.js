@@ -1,7 +1,7 @@
 module.exports.validateNewQuizData = (req) => {
-  const { title, markPerQuestion, noOfQuestionForStud, totalMarks } = req.body;
+  const { title, markPerQuestion, noOfQuestionforStud, totalMarks } = req.body;
   if (
-    parseFloat(markPerQuestion) * parseInt(noOfQuestionForStud) !==
+    parseFloat(markPerQuestion) * parseInt(noOfQuestionforStud) !=
     parseInt(totalMarks)
   ) {
     return { result: false, message: "total marks is incorrect!!!" };

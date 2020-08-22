@@ -151,7 +151,7 @@ module.exports.getStudentExams = async (req, res, next) => {
     where: { ref: pid },
   });
   const myexams = await ExamScore.findAll({
-    where: { PersonId: person.id },
+    where: { personId: person.id },
     attributes: { exclude: ["personId", "schoolId", "examId", "id", "score"] },
     include: [Exam, { model: School, attributes: ["name"] }],
   });
