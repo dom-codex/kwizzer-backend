@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { v4: uuid } = require("uuid");
 const moment = require("moment");
 const bcrypt = require("bcryptjs");
 const School = require("../models/school");
@@ -21,7 +22,7 @@ const { HandleUserError } = require("../helpers/errorHandler");
 //custom imports
 module.exports.createSchool = async (req, res, next) => {
   //retrieve details from form body
-  const { owner, name, email, password } = req.body;
+  const { name, email, password } = req.body;
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     const input = HandleUserError(req.body, errors, req);
@@ -31,21 +32,19 @@ module.exports.createSchool = async (req, res, next) => {
     });
   }
   const hashedPasword = await bcrypt.hash(password, 12);
-  crypto.randomBytes(20, async (err, buffer) => {
-    const ref = buffer.toString("hex");
-    const school = await School.create({
+  const school = await School.create({
+    name: name,
+    ref: uuid(),
+    email: email,
+    password: hashedPasword,
+  });
+  res.json({
+    code: 200,
+    school: {
+      ref: school.ref,
       name: name,
-      ref: ref,
-      email: email,
-      password: hashedPasword,
-    });
-    res.json({
-      code: 200,
-      school: {
-        ref: ref,
-      },
-      message: "school created!!!",
-    });
+    },
+    message: "school created!!!",
   });
 };
 module.exports.loginSchool = async (req, res, next) => {

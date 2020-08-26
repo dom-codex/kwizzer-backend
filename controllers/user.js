@@ -32,6 +32,7 @@ module.exports.createUser = async (req, res, next) => {
         code: 201,
         user: {
           ref: ref,
+          name: name,
         },
         message: "account sucessfully created!!!",
       });
@@ -72,7 +73,10 @@ module.exports.loginUser = async (req, res, next) => {
 };
 module.exports.findUser = async (req, res, next) => {
   const { ref } = req.query;
-  const person = await Person.findOne({ where: { ref: ref } });
+  const person = await Person.findOne({
+    where: { ref: ref },
+    attributes: ["ref", "name"],
+  });
   if (!person) {
     return res.json({
       code: 400,
