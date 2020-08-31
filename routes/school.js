@@ -32,6 +32,7 @@ router.post(
   QuestionValidator,
   schoolControllers.updateQuestion
 );
+router.get("/question/delete", schoolControllers.deleteQuestion);
 router.get("/class/quiz/all", schoolControllers.retrieveQuizzes);
 router.get("/class/questions/all", schoolControllers.getAllQuizQuestions);
 //router.get("/hall/all", schoolControllers.listRegisteredCandidates);

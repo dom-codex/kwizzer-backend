@@ -269,6 +269,7 @@ module.exports.setQuestion = async (req, res, next) => {
       question: question,
       questionUrl: "",
       quizId: quiz.id,
+      ref: uuid(),
     });
     const myoptions = formatOptions(opts, answer, test.id, true);
     //loop through the options
@@ -300,7 +301,7 @@ module.exports.getSingleQuestion = async (req, res, next) => {
     attributes: ["id"],
   });
   const question = await Question.findOne({
-    where: { QuizId: myQuiz.id, id: qu },
+    where: { quizId: myQuiz.id, id: qu },
     include: Options,
   });
   res.json({
@@ -369,6 +370,37 @@ module.exports.updateQuestion = async (req, res, next) => {
   });
   res.json({
     code: 201,
+  });
+};
+module.exports.deleteQuestion = async (req, res, next) => {
+  const { question } = req.query;
+  if (!question.length) {
+    return res.json({
+      code: 403,
+      message: "invalid question hash",
+    });
+  }
+  const myQuestion = await Question.findOne({ where: { ref: question } });
+  if (!myQuestion) {
+    return res.json({ code: 404, message: "question not found" });
+  }
+  //find associated quiz
+  const quiz = await Quiz.findOne({
+    where: { id: myQuestion.quizId },
+    attributes: ["published", "totalQuestions", "nQuestions", "id"],
+  });
+  if (!quiz) {
+    return res.json({ code: 404, message: "parent quiz not found" });
+  }
+  if (quiz.totalQuestions - 1 < quiz.nQuestions) {
+    quiz.published = false;
+  }
+  quiz.totalQuestions = quiz.totalQuestions - 1;
+  await quiz.save();
+  await myQuestion.destroy();
+  res.json({
+    code: 200,
+    message: "Question deleted",
   });
 };
 module.exports.publishQuiz = async (req, res, next) => {

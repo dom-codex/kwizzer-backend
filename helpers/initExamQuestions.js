@@ -13,7 +13,7 @@ module.exports.initExamQuestion = (quizzes, questions) => {
     );
     for (let i = 0; i < toAnswer; i++) {
       //generate random number
-      const n = genRandomNumbers(random, myQuestions.length);
+      const n = genRandomNumbers([], myQuestions.length);
       const question = myQuestions[n - 1];
       questionsToAnswer.push({
         question: question.question,
