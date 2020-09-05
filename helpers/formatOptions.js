@@ -1,4 +1,5 @@
 module.exports.formatOptions = (options, answer, id, isNew) => {
+  const pattern = /(<[\/]{0,}p>)/gi;
   let answerCount = 0;
   let reformedOptions = [];
   //Object.keys(options)
@@ -6,6 +7,7 @@ module.exports.formatOptions = (options, answer, id, isNew) => {
     options = options.filter((option) => option.id !== 0);
   }
   options.forEach((option) => {
+    option.value = option.value.replace(pattern, "");
     if (option.value === answer) {
       reformedOptions.push({
         option: option.value,
@@ -15,7 +17,7 @@ module.exports.formatOptions = (options, answer, id, isNew) => {
       answerCount++;
     } else {
       reformedOptions.push({
-        option: option.value,
+        option: option.value.replace(pattern, ""),
         isAnswer: false,
         questionId: id,
       });

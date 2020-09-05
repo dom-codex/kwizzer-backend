@@ -74,6 +74,7 @@ module.exports.loadExamQuestion = async (req, res, next) => {
   // });
   const studentQuestion = initExamQuestion(quizzes, questions);
   examsheet.quizzes = studentQuestion;
+  examsheet.started = true;
   await examsheet.save();
 
   res.json({
@@ -146,7 +147,6 @@ module.exports.submitExamination = async (req, res, next) => {
 };
 module.exports.getStudentExams = async (req, res, next) => {
   const { pid } = req.query;
-
   const person = await Person.findOne({
     where: { ref: pid },
   });
@@ -222,6 +222,9 @@ module.exports.retry = async (req, res, next) => {
     where: { examsheet: sheet },
     include: Exam,
   });
+  if (!exams) {
+    return res.json({ code: 401, message: "exam no longer exists" });
+  }
   const examsheet = await examQuestions.findById(sheet);
   //find quizzes
   if (
@@ -245,6 +248,12 @@ module.exports.retry = async (req, res, next) => {
   const quizzes = await Quiz.findAll({
     where: { id: examsheet.quiz },
   });
+  if (quizzes.length !== examsheet.quiz.length || !quizzes.length) {
+    return res.json({
+      code: 401,
+      message: "some quiz(s) which are part of this exam has been deleted",
+    });
+  }
   const questions = await Question.findAll({
     where: { quizId: examsheet.quiz },
     include: Options,

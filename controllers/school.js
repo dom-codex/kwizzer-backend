@@ -13,6 +13,8 @@ const Hall = require("../models/hall");
 const SchoolNotification = require("../models/schoolNotification");
 const Exam = require("../models/exam");
 const ExamScore = require("../models/examScore");
+const examPaper = require("../models/examPaper");
+const examSheet = require("../models/examQuestions");
 //model imports
 const formatOptions = require("../helpers/formatOptions").formatOptions;
 const io = require("../socket");
@@ -230,12 +232,24 @@ module.exports.deleteQuiz = async (req, res, next) => {
       message: "quiz not found",
     });
   }
-  const destroyedQuiz = await Quiz.destroy({
-    where: {
-      schoolId: sch.id,
-      ref: quid,
-    },
+  const paper = await examPaper.findAll({ where: { quizId: quiz.id } });
+  if (paper.length) {
+    return res.json({
+      code: 401,
+      message:
+        "you cannot delete this quiz because it is already associated with an exam",
+    });
+  }
+  const exams = paper.map((pa) => pa.examId);
+  await examSheet.deleteMany({
+    $and: [
+      { exam: { $in: exams } },
+      { isApproved: false },
+      { isComplete: false },
+      { started: false },
+    ],
   });
+  await quiz.destroy();
   return res.json({
     code: 201,
     message: "quiz successfully deleted!!!",
@@ -243,9 +257,11 @@ module.exports.deleteQuiz = async (req, res, next) => {
 };
 module.exports.setQuestion = async (req, res, next) => {
   try {
+    console.log(req.body);
     //retrive quiz id from request body
     //options should be an array of option object with an is answer field set
     const { quid } = req.query;
+    const pattern = /(<[\/]{0,}p>)/gi;
     const { question, answer, opts } = req.body;
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -266,13 +282,14 @@ module.exports.setQuestion = async (req, res, next) => {
       });
     }
     const test = await Question.create({
-      question: question,
+      question: question.replace(pattern, ""),
       questionUrl: "",
       quizId: quiz.id,
       ref: uuid(),
     });
     const myoptions = formatOptions(opts, answer, test.id, true);
     //loop through the options
+    console.log(myoptions);
     if (myoptions.n > 1) {
       res.json({
         code: 403,
@@ -310,6 +327,8 @@ module.exports.getSingleQuestion = async (req, res, next) => {
 };
 module.exports.updateQuestion = async (req, res, next) => {
   //retrieve question id from the request body
+  const pattern = /(<[\/]{0,}p>)/gi;
+
   const { quid, quiz } = req.query;
   const { question, opts, answer, existing, todelete } = req.body;
   const errors = validationResult(req);
@@ -334,7 +353,7 @@ module.exports.updateQuestion = async (req, res, next) => {
   let tocreate = opts.map((option) => {
     if (option.id == 0) {
       return {
-        option: option.value,
+        option: option.value.replace(pattern, ""),
         questionId: quid,
         isAnswer: option.value === answer ? true : false,
       };
@@ -347,18 +366,18 @@ module.exports.updateQuestion = async (req, res, next) => {
   }
   const myoptions = formatOptions(opts, answer, questions.id, true);
   if (myoptions.n > 1) {
-    res.json({
+    return res.json({
       code: 403,
       message: "answer must be unique!!!",
     });
   } else if (myoptions.n <= 0) {
-    res.json({
+    return res.json({
       code: 403,
       message: "please select an answer!!!",
     });
   }
 
-  questions.question = question;
+  questions.question = question.replace(pattern, "");
   await questions.save();
   const editedopts = await Options.findAll({
     where: { questionId: quid },
@@ -392,6 +411,7 @@ module.exports.deleteQuestion = async (req, res, next) => {
   if (!quiz) {
     return res.json({ code: 404, message: "parent quiz not found" });
   }
+
   if (quiz.totalQuestions - 1 < quiz.nQuestions) {
     quiz.published = false;
   }

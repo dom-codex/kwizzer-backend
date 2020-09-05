@@ -42,7 +42,6 @@ module.exports.createExam = async (req, res, next) => {
   } = req.body;
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    console.log(errors);
     let err = {};
     errors.errors.forEach((e) => {
       err = { ...err, [e.param]: { param: e.param, msg: e.msg } };
@@ -234,9 +233,16 @@ module.exports.deleteAnExam = async (req, res, next) => {
   const school = await School.findOne({
     where: { ref: sch },
   });
-  const destroyedExam = await Exam.destroy({
-    where: { ref: exam, schoolId: school.id },
-  });
+  //find exam
+  const examTodelete = await Exam.findOne({ where: { ref: exam } });
+  if (examTodelete.canReg || examTodelete.canStart) {
+    return res.json({
+      code: 403,
+      message:
+        "you cannot delete this exam at the moment because the registration link is currently active or you have granted access to your students to take this exam",
+    });
+  }
+  await examTodelete.destroy();
   res.json({
     code: 200,
     message: "exam deleted!!!",

@@ -8,7 +8,7 @@ const Question = sequelize.define("question", {
     allowNull: false,
     primaryKey: true,
   },
-  question: Sequelize.STRING,
+  question: Sequelize.STRING({ length: 10485759 }),
   questionUrl: Sequelize.STRING,
   ref: Sequelize.STRING,
 });

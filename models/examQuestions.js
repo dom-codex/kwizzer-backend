@@ -7,6 +7,10 @@ const ExamQuestionSchema = new schema({
   student: schema.Types.Number,
   studentName: schema.Types.String,
   schoolName: schema.Types.String,
+  started: {
+    type: schema.Types.Boolean,
+    default: false,
+  },
   isComplete: {
     type: schema.Types.Boolean,
     default: false,
