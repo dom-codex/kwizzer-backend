@@ -274,3 +274,22 @@ exports.validateRegistration = [
       }
     }),
 ];
+module.exports.validatePasswordResetData = [
+  check("oldPwd")
+    .isLength({ min: 5 })
+    .withMessage("old password should 5 characters and above")
+    .custom((val, { req }) => {
+      return Person.findOne({
+        where: { ref: req.query.ref },
+        attributes: ["id", "password"],
+      }).then(async (user) => {
+        const isPassword = await bcrypt.compare(val, user.password);
+        if (!isPassword) {
+          return Promise.reject("incorrect old password");
+        }
+      });
+    }),
+  check("newPwd")
+    .isLength({ min: 5 })
+    .withMessage("new password should 5 characters and above"),
+];

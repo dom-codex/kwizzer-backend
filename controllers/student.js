@@ -150,6 +150,12 @@ module.exports.getStudentExams = async (req, res, next) => {
   const person = await Person.findOne({
     where: { ref: pid },
   });
+  if (!person) {
+    return res.json({
+      code: 403,
+      message: "candidate does not exist yet",
+    });
+  }
   const myexams = await ExamScore.findAll({
     where: { personId: person.id },
     attributes: { exclude: ["personId", "schoolId", "examId", "id", "score"] },
