@@ -21,10 +21,11 @@ const io = require("../socket");
 const { validateNewQuizData } = require("../helpers/newQuizValidator");
 const { validationResult } = require("express-validator");
 const { HandleUserError } = require("../helpers/errorHandler");
+const e = require("express");
 //custom imports
 module.exports.createSchool = async (req, res, next) => {
   //retrieve details from form body
-  const { name, email, password } = req.body;
+  const { name, email, phone, password } = req.body;
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     const input = HandleUserError(req.body, errors, req);
@@ -39,6 +40,7 @@ module.exports.createSchool = async (req, res, next) => {
     ref: uuid(),
     email: email,
     password: hashedPasword,
+    phone: phone,
   });
   res.json({
     code: 200,
@@ -47,6 +49,17 @@ module.exports.createSchool = async (req, res, next) => {
       name: name,
     },
     message: "school created!!!",
+  });
+};
+module.exports.findSchool = async (req, res, next) => {
+  const { sch } = req.query;
+  const school = await School.findOne({
+    where: { ref: sch },
+    attributes: ["id", "name", "email", "phone"],
+  });
+  return res.json({
+    code: 201,
+    sch: school,
   });
 };
 module.exports.loginSchool = async (req, res, next) => {
@@ -75,6 +88,85 @@ module.exports.loginSchool = async (req, res, next) => {
     console.log(err);
   }
 };
+module.exports.resetPassword = async (req, res, next) => {
+  const { sch } = req.query;
+  const { oldPwd, newPwd } = req.body;
+  const errors = validationResult(req);
+  const oldError = errors.errors.find((err) => err.param === "oldPwd");
+  const newError = errors.errors.find((err) => err.param === "newPwd");
+  if (!errors.isEmpty()) {
+    return res.json({
+      code: 403,
+      err: {
+        oldError: oldError ? oldError : false,
+        newError: newError ? newError : false,
+      },
+    });
+  }
+  const school = await School.findOne({
+    where: { ref: sch },
+    attributes: ["id", "password"],
+  });
+  const isPassword = await bcrypt.compare(oldPwd, school.password);
+  if (!isPassword) {
+    return res.json({
+      code: 403,
+      message: "Incorrect old password",
+    });
+  }
+  const hashedPassword = await bcrypt.hash(newPwd, 12);
+  school.password = hashedPassword;
+  await school.save();
+  res.json({
+    code: 200,
+    message: "password changed succesfully",
+  });
+};
+module.exports.changeName = async (req, res, next) => {
+  const { sch } = req.query;
+  const { name } = req.body;
+  const school = await School.findOne({
+    where: { ref: sch },
+    attributes: ["id", "name"],
+  });
+  school.name = name;
+  await school.save();
+  return res.json({
+    code: 201,
+    message: "name changed successfully!!!",
+  });
+};
+module.exports.changePhone = async (req, res, next) => {
+  const { sch } = req.query;
+  const { phone } = req.body;
+  const school = await School.findOne({
+    where: { ref: sch },
+    attributes: ["id", "phone"],
+  });
+  school.phone = phone;
+  await school.save();
+  return res.json({
+    code: 201,
+    message: "phone changed successfully!!!",
+  });
+};
+module.exports.deleteAccount = async (req, res, next) => {
+  try {
+    const { sch } = req.query;
+    const school = await School.findOne({
+      where: { ref: sch },
+      attributes: ["id"],
+    });
+    await school.destroy();
+    return res.json({
+      code: 201,
+      message: "account deleted",
+    });
+  } catch (err) {
+    console.log(err);
+  }
+};
+
 module.exports.setQuiz = async (req, res, next) => {
   try {
     /**get teachers id and the school and class id which the quiz belongs to */
@@ -257,7 +349,6 @@ module.exports.deleteQuiz = async (req, res, next) => {
 };
 module.exports.setQuestion = async (req, res, next) => {
   try {
-    console.log(req.body);
     //retrive quiz id from request body
     //options should be an array of option object with an is answer field set
     const { quid } = req.query;
@@ -289,7 +380,6 @@ module.exports.setQuestion = async (req, res, next) => {
     });
     const myoptions = formatOptions(opts, answer, test.id, true);
     //loop through the options
-    console.log(myoptions);
     if (myoptions.n > 1) {
       res.json({
         code: 403,

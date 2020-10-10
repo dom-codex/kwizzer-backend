@@ -25,6 +25,11 @@ const School = sequelize.define("school", {
     type: Sequelize.STRING,
     allowNull: false,
   },
+  phone: {
+    type: Sequelize.STRING,
+    allowNull: true,
+    defaultValue: "N/A",
+  },
   ref: {
     type: Sequelize.STRING,
     allowNull: false,

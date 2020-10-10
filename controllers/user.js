@@ -1,8 +1,13 @@
 const bcrypt = require("bcryptjs");
 const Person = require("../models/person");
+const examScore = require("../models/examScore");
+const examQuestions = require("../models/examQuestions");
+const exam = require("../models/exam");
+const notification = require("../models/studentNotification");
 const crypto = require("crypto");
 const { validationResult } = require("express-validator");
 const { HandleUserError } = require("../helpers/errorHandler");
+
 //third party imports
 module.exports.createUser = async (req, res, next) => {
   try {
@@ -100,7 +105,6 @@ module.exports.resetPassword = async (req, res, next) => {
   const { ref } = req.query;
   const { oldPwd, newPwd } = req.body;
   const errors = validationResult(req);
-  console.log(errors.errors);
   const oldError = errors.errors.find((err) => err.param === "oldPwd");
   const newError = errors.errors.find((err) => err.param === "newPwd");
   if (!errors.isEmpty()) {
@@ -129,5 +133,93 @@ module.exports.resetPassword = async (req, res, next) => {
   res.json({
     code: 200,
     message: "password changed succesfully",
+  });
+};
+module.exports.changeName = async (req, res, next) => {
+  const { ref } = req.query;
+  const { name } = req.body;
+  const person = await Person.findOne({
+    where: { ref: ref },
+    attributes: ["id", "name"],
+  });
+  person.name = name;
+  await person.save();
+  return res.json({
+    code: 201,
+    message: "name changed successfully!!!",
+  });
+};
+module.exports.changePhone = async (req, res, next) => {
+  const { ref } = req.query;
+  const { phone } = req.body;
+  const person = await Person.findOne({
+    where: { ref: ref },
+    attributes: ["id", "phone"],
+  });
+  person.phone = phone;
+  await person.save();
+  return res.json({
+    code: 201,
+    message: "phone changed successfully!!!",
+  });
+};
+module.exports.deleteAccount = async (req, res, next) => {
+  try {
+    const { ref } = req.query;
+    const person = await Person.findOne({
+      where: { ref: ref },
+      attributes: ["id"],
+    });
+    //DELETE NOTIFICATIONS
+    await notification.destroy({ where: { personId: person.id } });
+    //GET EXAM SCORES
+    const examscores = await examScore.findAll({
+      where: { personId: person.id },
+      attributes: ["id", "examsheet", "personId"],
+    });
+    const sheets = examscores.map((sheet) => sheet.examsheet);
+    //DELETE QUESTION PAPER
+    await examQuestions.deleteMany({ _id: { $in: sheets } });
+    //DELETE EXAM SCORES
+    const scores = sheets.map((sheet) => sheet.id);
+    await examScore.destroy({ where: { id: scores } });
+    //DELETE ACCOUNT
+    await person.destroy();
+    return res.json({
+      code: 201,
+      message: "account deleted",
+    });
+  } catch (err) {
+    console.log(err);
+  }
+};
+module.exports.getStatistics = async (req, res, next) => {
+  const { ref } = req.query;
+  let examNames = null;
+  const person = await Person.findOne({
+    where: { ref: ref },
+    attributes: ["id"],
+  });
+  const completedQuestions = await examQuestions.countDocuments({
+    $and: [{ student: person.id }, { isCompleted: true }],
+  });
+  const registeredExam = await examScore.count({ personId: person.id });
+  const highestScore = await examQuestions
+    .findOne({ student: person.id })
+    .select(["score", "exam", "schoolName"])
+    .sort({ score: -1 })
+    .limit(1);
+  if (highestScore) {
+    examNames = await exam.findOne({
+      where: { id: highestScore.exam },
+      attributes: ["name"],
+    });
+  }
+  res.json({
+    code: 200,
+    completedQuestions,
+    registeredExam,
+    highestScore,
+    examNames,
   });
 };

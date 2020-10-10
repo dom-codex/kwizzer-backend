@@ -293,3 +293,22 @@ module.exports.validatePasswordResetData = [
     .isLength({ min: 5 })
     .withMessage("new password should 5 characters and above"),
 ];
+module.exports.validateSchoolPasswordResetData = [
+  check("oldPwd")
+    .isLength({ min: 5 })
+    .withMessage("old password should 5 characters and above")
+    .custom((val, { req }) => {
+      return School.findOne({
+        where: { ref: req.query.sch },
+        attributes: ["id", "password"],
+      }).then(async (school) => {
+        const isPassword = await bcrypt.compare(val, school.password);
+        if (!isPassword) {
+          return Promise.reject("incorrect old password");
+        }
+      });
+    }),
+  check("newPwd")
+    .isLength({ min: 5 })
+    .withMessage("new password should 5 characters and above"),
+];

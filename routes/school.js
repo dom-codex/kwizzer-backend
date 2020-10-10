@@ -6,6 +6,7 @@ const {
   QuestionValidator,
   validateExamForm,
   validateRegistration,
+  validateSchoolPasswordResetData,
 } = require("../validators/route-data-validate");
 const schoolControllers = require("../controllers/school");
 const studentControllers = require("../controllers/student");
@@ -13,7 +14,16 @@ const examControllers = require("../controllers/exam");
 
 /** route for School signup */
 router.post("/create", validateNewSchoolInfo, schoolControllers.createSchool);
+router.get("/find", schoolControllers.findSchool);
+router.post("/edit/name", schoolControllers.changeName);
+router.post("/edit/phone", schoolControllers.changePhone);
+router.post(
+  "/reset/password",
+  validateSchoolPasswordResetData,
+  schoolControllers.resetPassword
+);
 router.post("/login", validateSchoolLoginInfo, schoolControllers.loginSchool);
+router.get("/delete", schoolControllers.deleteAccount);
 //router.post("/class/create", schoolControllers.createClassBlock);
 //router.post("/class/add/teacher", schoolControllers.addTeacher);
 //tutor specific route
