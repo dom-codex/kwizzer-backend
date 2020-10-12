@@ -201,11 +201,19 @@ module.exports.getStatistics = async (req, res, next) => {
     attributes: ["id"],
   });
   const completedQuestions = await examQuestions.countDocuments({
-    $and: [{ student: person.id }, { isCompleted: true }],
+    $and: [{ student: person.id }, { isComplete: true }, { isApproved: true }],
   });
-  const registeredExam = await examScore.count({ personId: person.id });
+  const registeredExam = await examScore.count({
+    personId: person.id,
+  });
   const highestScore = await examQuestions
-    .findOne({ student: person.id })
+    .findOne({
+      $and: [
+        { student: person.id },
+        { isComplete: true },
+        { isApproved: true },
+      ],
+    })
     .select(["score", "exam", "schoolName"])
     .sort({ score: -1 })
     .limit(1);
