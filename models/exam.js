@@ -25,5 +25,6 @@ const Exam = sequelize.define("exam", {
   canReg: { type: Sequelize.BOOLEAN, default: false },
   canStart: { type: Sequelize.BOOLEAN, default: false },
   retries: { type: Sequelize.INTEGER, default: 0 },
+  Canwhitelist: { type: Sequelize.BOOLEAN, default: false },
 });
 module.exports = Exam;

@@ -85,7 +85,7 @@ sequelize
   .sync()
   .then((_) => {
     mongoose.connect(process.env.mongo).then((_) => {
-      server.listen(3500);
+      server.listen(process.env.PORT);
       const io = require("./socket").init(server); //socket server initialization
       io.on("connect", (socket) => {
         const roomNo = socket.handshake.query.ref;
