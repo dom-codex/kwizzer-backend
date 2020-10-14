@@ -24,6 +24,7 @@ const schNotification = require("./models/schoolNotification");
 const exam = require("./models/exam");
 const examPaper = require("./models/examPaper");
 const examscore = require("./models/examScore");
+const whitelist = require("./models/whitelist");
 const authRoute = require("./routes/authentication");
 //custom imports
 const app = express();

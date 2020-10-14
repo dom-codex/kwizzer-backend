@@ -12,6 +12,7 @@ const studentNotification = require("../models/studentNotification");
 const SchoolNotification = require("../models/schoolNotification");
 const Person = require("../models/person");
 const examQuestions = require("../models/examQuestions");
+const WhiteList = require("../models/whitelist");
 //models import
 const { storeExamQuizzes } = require("../helpers/storeQuizOnpaper");
 const io = require("../socket");
@@ -147,11 +148,20 @@ module.exports.ExamRecords = async (req, res, next) => {
   });
 };
 module.exports.getAnExam = async (req, res, next) => {
-  const { eid } = req.query;
+  const { eid, whitelist } = req.query;
+  if (whitelist) {
+    const exam = await Exam.findOne({
+      where: { ref: eid },
+      attributes: ["id", "Canwhitelist", "name"],
+    });
+    return res.json({
+      code: 200,
+      exam: exam,
+    });
+  }
   const exam = await Exam.findOne({
     where: { ref: eid },
   });
-
   res.json({
     code: 200,
     quiz: exam,
@@ -277,6 +287,17 @@ module.exports.RegisterForExam = async (req, res, next) => {
     const student = await Person.findOne({
       where: { email: email },
     });
+    if (exams.Canwhitelist) {
+      const isWhitelisted = await WhiteList.count({
+        where: { candidateEmail: student.email, exam: exam },
+      });
+      if (!isWhitelisted) {
+        return res.json({
+          code: 403,
+          message: "sorry,you cannot register for this exam",
+        });
+      }
+    }
     if (type === "custom") {
       subjects = subjects.map((sub) => parseInt(sub));
       quids = subjects;
@@ -535,5 +556,130 @@ module.exports.ApproveSingleResult = async (req, res, next) => {
   res.json({
     code: 200,
     updated: updated.n,
+  });
+};
+module.exports.whitelist = async (req, res, next) => {
+  const { eid } = req.query;
+  const exam = await Exam.findOne({
+    where: { ref: eid },
+    attributes: ["id", "Canwhitelist"],
+  });
+  if (!exam) {
+    return res.json({
+      code: 404,
+    });
+  }
+  exam.Canwhitelist = !exam.Canwhitelist;
+  await exam.save();
+  res.json({
+    code: 200,
+  });
+};
+module.exports.addToWhiteList = async (req, res, next) => {
+  const { eid } = req.query;
+  const { email } = req.body;
+  //FIND EXAM
+  const exam = await Exam.findOne({ where: { ref: eid }, attributes: ["id"] });
+  if (!exam) {
+    return res.json({
+      code: 404,
+    });
+  }
+  //FIND PERSON
+  const person = await Person.findOne({ where: { email: email } });
+  if (!person) {
+    return res.json({
+      code: 404,
+    });
+  }
+  // CHECK IF PERSON IS ALREADY WHITELISTED
+  const isWhitelisted = await WhiteList.findOne({
+    where: { candidateEmail: email },
+  });
+  if (isWhitelisted) {
+    return res.json({
+      code: 403,
+    });
+  }
+  const whitelist = await WhiteList.create({
+    candidateName: person.name,
+    candidateEmail: email,
+    exam: eid,
+  });
+  const addedCandidate = await whitelist.save();
+  res.json({
+    code: 201,
+    name: addedCandidate.candidateName,
+    email: addedCandidate.candidateEmail,
+  });
+};
+
+module.exports.whitelist = async (req, res, next) => {
+  const { eid } = req.query;
+  const exam = await Exam.findOne({
+    where: { ref: eid },
+    attributes: ["id", "Canwhitelist"],
+  });
+  if (!exam) {
+    return res.json({
+      code: 404,
+    });
+  }
+  exam.Canwhitelist = !exam.Canwhitelist;
+  await exam.save();
+  res.json({
+    code: 200,
+  });
+};
+module.exports.removefromWhiteList = async (req, res, next) => {
+  const { eid } = req.query;
+  const { email } = req.body;
+  //FIND EXAM
+  const exam = await Exam.findOne({ where: { ref: eid }, attributes: ["id"] });
+  if (!exam) {
+    return res.json({
+      code: 401,
+    });
+  }
+  //FIND PERSON
+  const person = await Person.findOne({ where: { email: email } });
+  if (!person) {
+    return res.json({
+      code: 403,
+    });
+  }
+  const whitelist = await WhiteList.destroy({
+    where: {
+      candidateEmail: email,
+    },
+  });
+  console.log("sdksjdkjsksjdkj");
+  res.json({
+    code: 201,
+  });
+};
+module.exports.getWhitelist = async (req, res, next) => {
+  const { eid } = req.query;
+  const whitelist = await WhiteList.findAll({ where: { exam: eid } });
+  res.json({
+    code: 201,
+    list: whitelist,
+  });
+};
+module.exports.removeAllFromWhiteList = async (req, res, next) => {
+  const { eid } = req.query;
+  //VALIDATE ID
+  console.log(eid);
+  const exam = await Exam.findOne({ where: { ref: eid } });
+  if (!exam) {
+    return res.json({
+      code: 404,
+      message: "invalid id",
+    });
+  }
+  //ERASE ALL WHITELISTED CANDIDATES
+  const deleted = await WhiteList.destroy({ where: { exam: eid } });
+  res.json({
+    code: 201,
   });
 };
